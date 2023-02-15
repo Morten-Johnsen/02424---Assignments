@@ -57,7 +57,6 @@ dioxin$DIOX_boxcox <- Trans.eq1(lambda.hat, dioxin$DIOX)
 hist(dioxin$DIOX_boxcox, breaks = 5)
 
 dioxin %>%
-  mutate(logDiox = log(DIOX)) %>%
   select(-PLANT, -LAB, -OXYGEN, -LOAD, -PRSEK, -OBSERV) %>%
   melt() %>%
   ggplot()+
@@ -69,7 +68,6 @@ dioxin %>%
 #considerable measurement noise is expected.
 
 dioxin %>%
-  mutate(logDiox = log(DIOX)) %>%
   select(logDiox, TIME, LAB_USA_or_KK
          , PLANT_RENO_N, PLANT_RENO_S, PLANT_KARA
          , OXYGEN_Ordinal
