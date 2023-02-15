@@ -1,5 +1,6 @@
 rm(list=ls())
 library(GGally)
+library(corrplot)
 
 if (Sys.getenv('USER') == "mortenjohnsen"){
   setwd("/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/")
@@ -75,6 +76,49 @@ dioxin %>%
          , PRSEK_Ordinal
          , O2, O2COR, NEFFEKT, QRAT) %>%
   ggpairs()
+
+# Plot ordinal values versus the actually measured values
+dioxin %>%
+  select(OXYGEN_Ordinal
+         , LOAD_Ordinal
+         , PRSEK_Ordinal
+         , O2, O2COR, NEFFEKT, QRAT) %>%
+  ggpairs()
+
+# Plot the values used in the first models: 
+# Block values and the active values (ordinal)
+dioxin %>%
+  select(logDiox, TIME, LAB_USA_or_KK
+         , PLANT_RENO_N, PLANT_RENO_S, PLANT_KARA
+         , OXYGEN_Ordinal
+         , LOAD_Ordinal
+         , PRSEK_Ordinal) %>%
+  ggpairs()
+
+dioxin %>%
+  select(logDiox, TIME, LAB_USA_or_KK
+         , PLANT_RENO_N, PLANT_RENO_S, PLANT_KARA
+         , OXYGEN_Ordinal
+         , LOAD_Ordinal
+         , PRSEK_Ordinal) %>%
+  cor() %>%
+  corrplot()
+
+# Plot the values used in the second models: 
+# Block values and the active values (measured)
+dioxin %>%
+  select(logDiox, TIME, LAB_USA_or_KK
+         , PLANT_RENO_N, PLANT_RENO_S, PLANT_KARA
+         , O2, O2COR, NEFFEKT, QRAT) %>%
+  ggpairs()
+
+dioxin %>%
+  select(logDiox, TIME, LAB_USA_or_KK
+         , PLANT_RENO_N, PLANT_RENO_S, PLANT_KARA
+         , O2, O2COR, NEFFEKT, QRAT) %>%
+  cor() %>%
+  corrplot(method = 'ellipse', order = 'AOE', type = 'upper')
+
 
 #Active variables: 
 #   "Theoretical": OXYGEN, LOAD, PRSEK.
