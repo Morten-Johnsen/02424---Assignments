@@ -113,6 +113,7 @@ dioxin %>%
 fit <- lm(DIOX_boxcox ~ PLANT_RENO_N + PLANT_RENO_S + PLANT_KARA + TIME + LAB + OXYGEN_ + LOAD + PRSEK, data = dioxin)
 summary(fit)
 
+
 #### 3) ####
 fit2 <- lm(DIOX_boxcox ~ PLANT + TIME + LAB + O2 + NEFFEKT + QRAT, data = dioxin)
 summary(fit2)
