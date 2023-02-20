@@ -125,7 +125,10 @@ dioxin %>%
 #   "Measured": O2 (O2COR), NEFFEKT, QRAT
 
 #### 2) ####
-fit <- lm(DIOX_boxcox ~ , data = dioxin)
+# Model with only active and the block variables.
+fit <- lm(DIOX_boxcox ~ OXYGEN_Ordinal + PRSEK_Ordinal + LOAD_Ordinal + 
+            PLANT_RENO_N + PLANT_KARA + 
+            LAB_USA_or_KK + TIME, data = dioxin)
 summary(fit)
 
 
