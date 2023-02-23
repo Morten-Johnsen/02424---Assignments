@@ -143,7 +143,35 @@ summary(fit1.1)
 # Non significant p-value - cannot reject the fact that the models might be 'equal'(H0: µ1 = µ2)
 anova(fit1, fit1.1)
 
+# Fit plot with labelled outliers
+par(mfrow=c(2,2))
+plot(fit1, pch = 19, col = 'gray50', 
+     main = "MODEL VARIATION", 
+     sub='green = variation accounted for by the model')
+plot(fit1.1, pch = 19, col = 'gray50', 
+     main = "MODEL VARIATION", 
+     sub='green = variation accounted for by the model')
+
+
 
 #### 3) ####
 fit2 <- lm(DIOX_boxcox ~ PLANT + TIME + LAB + O2 + NEFFEKT + QRAT, data = dioxin)
 summary(fit2)
+
+# - QRAT
+fit2.1 <- lm(DIOX_boxcox ~ PLANT + TIME + LAB + O2 + NEFFEKT, data = dioxin)
+summary(fit2.1)
+
+# Non significant p-value - cannot reject the fact that the models might be 'equal'(H0: µ1 = µ2)
+anova(fit2, fit2.1)
+
+# Fit plot with labelled outliers
+par(mfrow=c(2,2))
+plot(fit2, pch = 19, col = 'gray50', 
+     main = "MODEL VARIATION", 
+     sub='green = variation accounted for by the model')
+plot(fit2.1, pch = 19, col = 'gray50', 
+     main = "MODEL VARIATION", 
+     sub='green = variation accounted for by the model')
+
+# We see that the qq plots have a better fit for the model with measured variables (fit2)
