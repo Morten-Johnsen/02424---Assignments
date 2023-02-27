@@ -35,6 +35,9 @@ dioxin$PRSEK_Ordinal <-  rep(3, dim(dioxin)[1])
 dioxin$PRSEK_Ordinal     <- dioxin$PRSEK_Ordinal - 2*as.numeric(dioxin$PRSEK == "L")
 dioxin$PRSEK_Ordinal     <- dioxin$PRSEK_Ordinal -   as.numeric(dioxin$PRSEK == "N")
 
-dioxin$PLANT_RENO_N <- as.numeric(dioxin$PLANT == "RENO_N") #0 means Reno_S
-dioxin$PLANT_KARA   <- as.numeric(dioxin$PLANT == "KARA")
-dioxin$LAB_USA_or_KK      <- as.numeric(dioxin$LAB == "USA")
+dioxin$PLANT <- factor(dioxin$PLANT)
+dioxin$TIME <- factor(dioxin$TIME)
+dioxin$LAB <- factor(dioxin$LAB)
+dioxin$OXYGEN <- factor(dioxin$OXYGEN)
+dioxin$LOAD <- factor(dioxin$LOAD)
+dioxin$PRSEK <- factor(dioxin$PRSEK)
