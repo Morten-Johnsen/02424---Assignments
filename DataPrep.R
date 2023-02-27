@@ -23,17 +23,17 @@ dioxin$logDiox <- log(dioxin$DIOX)
 #Block effects: PLANT (3 plants, RENO_N, RENO_S and KARA), TIME (For RENO_N the experiment
 #was repeated at a later time point, 2, as well.), LAB (Two labs. One in DK and one in USE)
 #considerable measurement noise is expected.
-dioxin$LOAD_Ordinal <- rep(3, dim(dioxin)[1])
+dioxin$LOAD_Ordinal <- rep(1, dim(dioxin)[1])
 dioxin$LOAD_Ordinal     <- dioxin$LOAD_Ordinal - 2*as.numeric(dioxin$LOAD == "L")
-dioxin$LOAD_Ordinal     <- dioxin$LOAD_Ordinal - as.numeric(dioxin$LOAD == "N")
+dioxin$LOAD_Ordinal     <- dioxin$LOAD_Ordinal - 1*as.numeric(dioxin$LOAD == "N")
 
-dioxin$OXYGEN_Ordinal <-  rep(3, dim(dioxin)[1])
+dioxin$OXYGEN_Ordinal <-  rep(1, dim(dioxin)[1])
 dioxin$OXYGEN_Ordinal     <- dioxin$OXYGEN_Ordinal - 2*as.numeric(dioxin$OXYGEN == "L")
-dioxin$OXYGEN_Ordinal     <- dioxin$OXYGEN_Ordinal -   as.numeric(dioxin$OXYGEN == "N")
+dioxin$OXYGEN_Ordinal     <- dioxin$OXYGEN_Ordinal - 1*as.numeric(dioxin$OXYGEN == "N")
 
-dioxin$PRSEK_Ordinal <-  rep(3, dim(dioxin)[1])
+dioxin$PRSEK_Ordinal <-  rep(1, dim(dioxin)[1])
 dioxin$PRSEK_Ordinal     <- dioxin$PRSEK_Ordinal - 2*as.numeric(dioxin$PRSEK == "L")
-dioxin$PRSEK_Ordinal     <- dioxin$PRSEK_Ordinal -   as.numeric(dioxin$PRSEK == "N")
+dioxin$PRSEK_Ordinal     <- dioxin$PRSEK_Ordinal - 1*as.numeric(dioxin$PRSEK == "N")
 
 dioxin$PLANT <- factor(dioxin$PLANT)
 dioxin$TIME <- factor(dioxin$TIME)
