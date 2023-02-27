@@ -70,7 +70,7 @@ dioxin %>%
 
 dioxin %>%
   select(logDiox, TIME, LAB_USA_or_KK
-         , PLANT_RENO_N, PLANT_RENO_S, PLANT_KARA
+         , PLANT_RENO_N, PLANT_KARA # PLANT_RENO_S - is 0 in PLANT_RENO_N
          , OXYGEN_Ordinal
          , LOAD_Ordinal
          , PRSEK_Ordinal
@@ -89,7 +89,7 @@ dioxin %>%
 # Block values and the active values (ordinal)
 dioxin %>%
   select(logDiox, TIME, LAB_USA_or_KK
-         , PLANT_RENO_N, PLANT_RENO_S, PLANT_KARA
+         , PLANT_RENO_N, PLANT_KARA # PLANT_RENO_S - is 0 in PLANT_RENO_N
          , OXYGEN_Ordinal
          , LOAD_Ordinal
          , PRSEK_Ordinal) %>%
@@ -97,7 +97,7 @@ dioxin %>%
 
 dioxin %>%
   select(logDiox, TIME, LAB_USA_or_KK
-         , PLANT_RENO_N, PLANT_RENO_S, PLANT_KARA
+         , PLANT_RENO_N, PLANT_KARA # PLANT_RENO_S - is 0 in PLANT_RENO_N
          , OXYGEN_Ordinal
          , LOAD_Ordinal
          , PRSEK_Ordinal) %>%
@@ -108,13 +108,13 @@ dioxin %>%
 # Block values and the active values (measured)
 dioxin %>%
   select(logDiox, TIME, LAB_USA_or_KK
-         , PLANT_RENO_N, PLANT_RENO_S, PLANT_KARA
+         , PLANT_RENO_N, PLANT_KARA # PLANT_RENO_S - is 0 in PLANT_RENO_N
          , O2, O2COR, NEFFEKT, QRAT) %>%
   ggpairs()
 
 dioxin %>%
   select(logDiox, TIME, LAB_USA_or_KK
-         , PLANT_RENO_N, PLANT_RENO_S, PLANT_KARA
+         , PLANT_RENO_N, PLANT_KARA # PLANT_RENO_S - is 0 in PLANT_RENO_N
          , O2, O2COR, NEFFEKT, QRAT) %>%
   cor() %>%
   corrplot(method = 'ellipse', order = 'AOE', type = 'upper')
@@ -124,11 +124,54 @@ dioxin %>%
 #   "Theoretical": OXYGEN, LOAD, PRSEK.
 #   "Measured": O2 (O2COR), NEFFEKT, QRAT
 
+
+# Model(s) ----------------------------------------------------------------
 #### 2) ####
-fit <- lm(DIOX_boxcox ~ , data = dioxin)
-summary(fit)
+# Model with only active and the block variables.
+fit1 <- lm(DIOX_boxcox ~ OXYGEN_Ordinal + PRSEK_Ordinal + LOAD_Ordinal + 
+            PLANT_RENO_N + PLANT_KARA + 
+            LAB_USA_or_KK + TIME, data = dioxin)
+summary(fit1)
+
+## Reduction of model
+# -PRSEK_Ordinal
+fit1.1 <- lm(DIOX_boxcox ~ OXYGEN_Ordinal + LOAD_Ordinal + 
+              PLANT_RENO_N + PLANT_KARA + 
+              LAB_USA_or_KK + TIME, data = dioxin)
+summary(fit1.1)
+
+# Non significant p-value - cannot reject the fact that the models might be 'equal'(H0: µ1 = µ2)
+anova(fit1, fit1.1)
+
+# Fit plot with labelled outliers
+par(mfrow=c(2,2))
+plot(fit1, pch = 19, col = 'gray50', 
+     main = "MODEL VARIATION", 
+     sub='green = variation accounted for by the model')
+plot(fit1.1, pch = 19, col = 'gray50', 
+     main = "MODEL VARIATION", 
+     sub='green = variation accounted for by the model')
+
 
 
 #### 3) ####
 fit2 <- lm(DIOX_boxcox ~ PLANT + TIME + LAB + O2 + NEFFEKT + QRAT, data = dioxin)
 summary(fit2)
+
+# - QRAT
+fit2.1 <- lm(DIOX_boxcox ~ PLANT + TIME + LAB + O2 + NEFFEKT, data = dioxin)
+summary(fit2.1)
+
+# Non significant p-value - cannot reject the fact that the models might be 'equal'(H0: µ1 = µ2)
+anova(fit2, fit2.1)
+
+# Fit plot with labelled outliers
+par(mfrow=c(2,2))
+plot(fit2, pch = 19, col = 'gray50', 
+     main = "MODEL VARIATION", 
+     sub='green = variation accounted for by the model')
+plot(fit2.1, pch = 19, col = 'gray50', 
+     main = "MODEL VARIATION", 
+     sub='green = variation accounted for by the model')
+
+# We see that the qq plots have a better fit for the model with measured variables (fit2)
