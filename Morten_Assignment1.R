@@ -98,7 +98,7 @@ plot(dioxin$PLANT, fit_obs1$residuals)
 plot(dioxin$LAB, fit_obs1$residuals)
 
 
-add1(fit_obs1, scope = ~.+O2COR*NEFFEKT+I(O2COR^2)+I(NEFFEKT^2)+QROEG+TOVN+TROEG+POVN+CO2+CO+SO2+HCL+H2O+I(QROEG^2)+I(TOVN^2)+I(TROEG^2)+I(POVN^2)+I(CO2^2)+I(CO^2)+I(SO2^2)+I(HCL^2)+I(H2O^2)
+add1(fit_obs1, scope = ~.+O2COR*NEFFEKT+I(O2COR^2)+I(NEFFEKT^2)+QROEG+TOVN+TROEG+POVN+CO2+CO+SO2+HCL+O2COR+H2O+I(QROEG^2)+I(TOVN^2)+I(TROEG^2)+I(POVN^2)+I(CO2^2)+I(CO^2)+I(SO2^2)+I(HCL^2)+I(H2O^2)
      , test = "F", data = dioxin)
 model <- update(fit_obs1, .~.+HCL, data = dioxin)
 add1(model, scope = ~.+I(O2COR^2)+I(NEFFEKT^2)+QROEG+TOVN+TROEG+POVN+CO2+CO+SO2+H2O+I(QROEG^2)+I(TOVN^2)+I(TROEG^2)+I(POVN^2)+I(CO2^2)+I(CO^2)+I(SO2^2)+I(HCL^2)+I(H2O^2), test = "F", data = dioxin)
@@ -106,3 +106,7 @@ drop1(model, test = "F")
 
 par(mfrow = c(2,2))
 plot(model)
+
+
+par(mfrow=c(1,1))
+hist(dioxin$DIOX, breaks = 20)
