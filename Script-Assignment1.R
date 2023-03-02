@@ -1,6 +1,8 @@
 rm(list=ls())
 library(GGally)
 library(corrplot)
+library(car)
+library(MASS)
 
 if (Sys.getenv('USER') == "mortenjohnsen"){
   setwd("/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/")
@@ -207,25 +209,75 @@ ggplot(dioxin)+
   geom_boxplot(aes(x = PLANT, y =logDiox))
 
 #7)
-par(mfrow=c(2,3))
-plot(dioxin$O2COR, fit_obs1$residuals)
-plot(dioxin$NEFFEKT, fit_obs1$residuals)
-plot(dioxin$TIME, fit_obs1$residuals)
-plot(dioxin$PLANT, fit_obs1$residuals)
-plot(dioxin$LAB, fit_obs1$residuals)
+# Look at the passive variables to choose some interactions to model
+dioxin %>%
+  dplyr::select(logDiox # PLANT_RENO_S - is 0 in PLANT_RENO_N
+         , QROEG,TOVN,TROEG,POVN,CO2,logCO,SO2,logHCL,H2O) %>%
+  ggpairs()
 
-ggpairs(dioxin[,c(-(1:8),-26,-27)])
 
-add1(fit_obs1, scope = ~.+O2COR*NEFFEKT+I(O2COR^2)+I(NEFFEKT^2)+QROEG+TOVN+TROEG+POVN+CO2+CO+SO2+HCL+O2COR+H2O+
-       I(QROEG^2)+I(TOVN^2)+I(TROEG^2)+I(POVN^2)+I(CO2^2)+I(CO^2)+I(SO2^2)+I(HCL^2)+I(H2O^2)+
-       QROEG:TOVN+QROEG:POVN+QROEG:TROEG+logCO
-     , test = "F", data = dioxin)
-model <- update(fit_obs1, .~.+HCL, data = dioxin)
-add1(model, scope = ~.+I(O2COR^2)+I(NEFFEKT^2)+QROEG+TOVN+TROEG+POVN+CO2+CO+SO2+H2O+I(QROEG^2)+I(TOVN^2)+I(TROEG^2)+I(POVN^2)+I(CO2^2)+I(CO^2)+I(SO2^2)+I(HCL^2)+I(H2O^2), test = "F", data = dioxin)
-drop1(model, test = "F")
+# Look at different additions to the model
+add1(fit_obs1, scope=~.+QROEG+TOVN+TROEG+POVN+CO2+logCO+SO2+logHCL+H2O+I(QROEG^2)+I(TOVN^2)+
+       I(TROEG^2)+I(POVN^2)+I(CO2^2)+I(logCO^2)+I(SO2^2)+I(logHCL^2)+I(H2O^2)+
+       I(QROEG*TOVN)+I(QROEG*TROEG)+I(QROEG*POVN)+I(QROEG*SO2)+I(QROEG*H2O)+
+       I(TOVN*CO2)+I(TROEG*logCO)+I(TROEG*SO2)+I(TROEG*logHCL)+I(TROEG*H2O)+
+       I(CO2*H2O)+I(SO2*H2O)
+     ,test="F")
 
-par(mfrow = c(2,2))
-plot(model)
+# Add logHCL to model, because it is the most significant addition
+fit_pas1 <- update(fit_obs1, .~. + logHCL,data=dioxin)
+summary(fit_pas1)
 
-par(mfrow=c(1,1))
-hist(dioxin$DIOX, breaks = 20)
+add1(fit_pas1, scope=~.+QROEG+TOVN+TROEG+POVN+CO2+logCO+SO2+logHCL+H2O+I(QROEG^2)+I(TOVN^2)+
+       I(TROEG^2)+I(POVN^2)+I(CO2^2)+I(logCO^2)+I(SO2^2)+I(logHCL^2)+I(H2O^2)+
+       I(QROEG*TOVN)+I(QROEG*TROEG)+I(QROEG*POVN)+I(QROEG*SO2)+I(QROEG*H2O)+
+       I(TOVN*CO2)+I(TROEG*logCO)+I(TROEG*SO2)+I(TROEG*logHCL)+I(TROEG*H2O)+
+       I(CO2*H2O)+I(SO2*H2O)
+     ,test="F")
+
+# Add TROEG to model, because it is the most significant addition
+fit_pas2 <- update(fit_pas1, .~. + TROEG,data=dioxin)
+summary(fit_pas2)
+# Check difference in models
+anova(fit_pas1,fit_pas2)
+# Models are significantly different. Therefore, we keep the new one.
+
+add1(fit_pas2, scope=~.+QROEG+TOVN+TROEG+POVN+CO2+logCO+SO2+logHCL+H2O+I(QROEG^2)+I(TOVN^2)+
+       I(TROEG^2)+I(POVN^2)+I(CO2^2)+I(logCO^2)+I(SO2^2)+I(logHCL^2)+I(H2O^2)+
+       I(QROEG*TOVN)+I(QROEG*TROEG)+I(QROEG*POVN)+I(QROEG*SO2)+I(QROEG*H2O)+
+       I(TOVN*CO2)+I(TROEG*logCO)+I(TROEG*SO2)+I(TROEG*logHCL)+I(TROEG*H2O)+
+       I(CO2*H2O)+I(SO2*H2O)
+     ,test="F")
+
+# Add CO2 to model, because it is the most significant addition
+fit_pas3 <- update(fit_pas2, .~. + CO2,data=dioxin)
+summary(fit_pas3)
+# Check difference in models
+anova(fit_pas2,fit_pas3)
+# Models are significantly different. Therefore, we keep the new one.
+
+add1(fit_pas3, scope=~.+QROEG+TOVN+TROEG+POVN+CO2+logCO+SO2+logHCL+H2O+I(QROEG^2)+I(TOVN^2)+
+       I(TROEG^2)+I(POVN^2)+I(CO2^2)+I(logCO^2)+I(SO2^2)+I(logHCL^2)+I(H2O^2)+
+       I(QROEG*TOVN)+I(QROEG*TROEG)+I(QROEG*POVN)+I(QROEG*SO2)+I(QROEG*H2O)+
+       I(TOVN*CO2)+I(TROEG*logCO)+I(TROEG*SO2)+I(TROEG*logHCL)+I(TROEG*H2O)+
+       I(CO2*H2O)+I(SO2*H2O)
+     ,test="F")
+
+# Add POVN to model, because it is the most significant addition
+fit_pas4 <- update(fit_pas3, .~. + POVN,data=dioxin)
+summary(fit_pas4)
+# Check difference in models
+anova(fit_pas3,fit_pas4)
+# Models are significantly different. Therefore, we keep the new one.
+
+add1(fit_pas4, scope=~.+QROEG+TOVN+TROEG+POVN+CO2+logCO+SO2+logHCL+H2O+I(QROEG^2)+I(TOVN^2)+
+       I(TROEG^2)+I(POVN^2)+I(CO2^2)+I(logCO^2)+I(SO2^2)+I(logHCL^2)+I(H2O^2)+
+       I(QROEG*TOVN)+I(QROEG*TROEG)+I(QROEG*POVN)+I(QROEG*SO2)+I(QROEG*H2O)+
+       I(TOVN*CO2)+I(TROEG*logCO)+I(TROEG*SO2)+I(TROEG*logHCL)+I(TROEG*H2O)+
+       I(CO2*H2O)+I(SO2*H2O)
+     ,test="F")
+
+par(mfrow=c(2,2))
+plot(fit_pas4)
+
+
