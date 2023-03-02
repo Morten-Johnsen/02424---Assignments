@@ -58,7 +58,7 @@ dioxin$DIOX_boxcox <- Trans.eq1(lambda.hat, dioxin$DIOX)
 hist(dioxin$DIOX_boxcox, breaks = 5)
 
 dioxin %>%
-  select(-PLANT, -LAB, -OXYGEN, -LOAD, -PRSEK, -OBSERV) %>%
+  dplyr::select(-PLANT, -LAB, -OXYGEN, -LOAD, -PRSEK, -OBSERV) %>%
   melt() %>%
   ggplot()+
   geom_histogram(aes(x = value), bins = 10)+
@@ -69,8 +69,8 @@ dioxin %>%
 #considerable measurement noise is expected.
 
 dioxin %>%
-  select(logDiox, TIME, LAB_USA_or_KK
-         , PLANT_RENO_N, PLANT_KARA # PLANT_RENO_S - is 0 in PLANT_RENO_N
+  dplyr::select(logDiox, TIME, LAB
+         , PLANT # PLANT_RENO_S - is 0 in PLANT_RENO_N
          , OXYGEN_Ordinal
          , LOAD_Ordinal
          , PRSEK_Ordinal
@@ -79,7 +79,7 @@ dioxin %>%
 
 # Plot ordinal values versus the actually measured values
 dioxin %>%
-  select(OXYGEN_Ordinal
+  dplyr::select(OXYGEN_Ordinal
          , LOAD_Ordinal
          , PRSEK_Ordinal
          , O2, O2COR, NEFFEKT, QRAT) %>%
@@ -88,16 +88,16 @@ dioxin %>%
 # Plot the values used in the first models: 
 # Block values and the active values (ordinal)
 dioxin %>%
-  select(logDiox, TIME, LAB_USA_or_KK
-         , PLANT_RENO_N, PLANT_KARA # PLANT_RENO_S - is 0 in PLANT_RENO_N
+  dplyr::select(logDiox, TIME, LAB
+         , PLANT # PLANT_RENO_S - is 0 in PLANT_RENO_N
          , OXYGEN_Ordinal
          , LOAD_Ordinal
          , PRSEK_Ordinal) %>%
   ggpairs()
 
 dioxin %>%
-  select(logDiox, TIME, LAB_USA_or_KK
-         , PLANT_RENO_N, PLANT_KARA # PLANT_RENO_S - is 0 in PLANT_RENO_N
+  dplyr::select(logDiox#, TIME#, LAB
+         #, PLANT # PLANT_RENO_S - is 0 in PLANT_RENO_N
          , OXYGEN_Ordinal
          , LOAD_Ordinal
          , PRSEK_Ordinal) %>%
@@ -107,14 +107,14 @@ dioxin %>%
 # Plot the values used in the second models: 
 # Block values and the active values (measured)
 dioxin %>%
-  select(logDiox, TIME, LAB_USA_or_KK
-         , PLANT_RENO_N, PLANT_KARA # PLANT_RENO_S - is 0 in PLANT_RENO_N
+  dplyr::select(logDiox, TIME, LAB
+         , PLANT # PLANT_RENO_S - is 0 in PLANT_RENO_N
          , O2, O2COR, NEFFEKT, QRAT) %>%
   ggpairs()
 
 dioxin %>%
-  select(logDiox, TIME, LAB_USA_or_KK
-         , PLANT_RENO_N, PLANT_KARA # PLANT_RENO_S - is 0 in PLANT_RENO_N
+  dplyr::select(logDiox#, TIME, LAB
+         #, PLANT # PLANT_RENO_S - is 0 in PLANT_RENO_N
          , O2, O2COR, NEFFEKT, QRAT) %>%
   cor() %>%
   corrplot(method = 'ellipse', order = 'AOE', type = 'upper')
@@ -218,7 +218,7 @@ ggpairs(dioxin[,c(-(1:8),-26,-27)])
 
 add1(fit_obs1, scope = ~.+O2COR*NEFFEKT+I(O2COR^2)+I(NEFFEKT^2)+QROEG+TOVN+TROEG+POVN+CO2+CO+SO2+HCL+O2COR+H2O+
        I(QROEG^2)+I(TOVN^2)+I(TROEG^2)+I(POVN^2)+I(CO2^2)+I(CO^2)+I(SO2^2)+I(HCL^2)+I(H2O^2)+
-       QROEG:TOVN+QROEG:POVN+QROEG:TROEG
+       QROEG:TOVN+QROEG:POVN+QROEG:TROEG+logCO
      , test = "F", data = dioxin)
 model <- update(fit_obs1, .~.+HCL, data = dioxin)
 add1(model, scope = ~.+I(O2COR^2)+I(NEFFEKT^2)+QROEG+TOVN+TROEG+POVN+CO2+CO+SO2+H2O+I(QROEG^2)+I(TOVN^2)+I(TROEG^2)+I(POVN^2)+I(CO2^2)+I(CO^2)+I(SO2^2)+I(HCL^2)+I(H2O^2), test = "F", data = dioxin)
