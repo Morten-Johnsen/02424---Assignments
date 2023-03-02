@@ -281,3 +281,19 @@ par(mfrow=c(2,2))
 plot(fit_pas4)
 
 
+# possible likelihood for 9)
+ml.function <- function(theta){
+  return(-sum(dnorm(filter(dioxin, LAB == "KK")$logDiox, mean = theta[1], sd = theta[2], log = T)))
+}
+
+est.KK <- nlminb(c(0,1), objective = ml.function)$par
+est.KK
+
+ml.function2 <- function(theta){
+  return(-sum(dnorm(filter(dioxin, LAB == "USA")$logDiox, mean = theta[1], sd = theta[2], log = T)))
+}
+est.USA <- nlminb(c(0,1), objective = ml.function2)$par
+est.USA
+
+1/est.KK[2]
+1/est.USA[2]
