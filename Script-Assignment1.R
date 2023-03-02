@@ -55,21 +55,38 @@ abline(h = c, col = "red")
 sd_reg <- sqrt(diag(solve(hessian(func = lambda_NLL, x = theta.hat$par))))
 lambda.hat + qt(c(alpha/2, 1-alpha/2), df = length(dioxin$DIOX) - 1) * sd_reg[1]
 
-
+# Histogram of boxcox and log-dioxin
 dioxin$DIOX_boxcox <- Trans.eq1(lambda.hat, dioxin$DIOX)
 hist(dioxin$DIOX_boxcox, breaks = 5)
 
 # TODO Color code passive vs active, and measured vs. ordinal
+postscript("histograms_for_all.eps", horizontal = FALSE, onefile = FALSE, paper = "special",height = 10, width = 10)
 dioxin %>%
   dplyr::select(-PLANT, -LAB, -OXYGEN, -LOAD, -PRSEK, -OBSERV, -DIOX_boxcox) %>%
   melt() %>%
+  mutate(color = c(rep("black", 52), 
+                   rep("green", 52*4), 
+                   rep("orange", 52*9), 
+                   rep("black", 52), 
+                   rep("orange", 52*2), 
+                   rep("red", 52*3))) %>%
   ggplot()+
-  geom_histogram(aes(x = value), bins = 10)+
-  facet_wrap(~variable, scales = "free")
+  geom_histogram(aes(x = value, fill = color), bins = 10)+
+  facet_wrap(~variable, scales = "free")+
+  theme(legend.position = "none")
+dev.off()
+
+# orange = passive (QROEG, TOVN, TROEG, POVN, CO2, CO, SO2, HCL, H2O)
+# blue = active    (OXYGEN, LOAD, PRSEK)
+# green = measured (O2, O2COR, NEFFEKT, QRAT)
+# red = ordinal    (PALNT, TIME, LAB)
+# black = DIOX
+
 
 # TODO: Do this to the ones not in the plot
 table(dioxin$PLANT)
 table(dioxin$LAB)
+table(dioxin$TIME)
 
 #Block effects: PLANT (3 plants, RENO_N, RENO_S and KARA), TIME (For RENO_N the experiment
 #was repeated at a later time point, 2, as well.), LAB (Two labs. One in DK and one in USE)
@@ -90,14 +107,43 @@ table(dioxin$LAB)
 #       - Variables in first model
 #       - Variables in second model
 par(mfrow=c(1,1))
+postscript("corplot_ordinal_vs_measured.eps", horizontal = FALSE, onefile = FALSE, paper = "special",height = 10, width = 10)
 dioxin %>%
-  dplyr::select(logDiox#, TIME#, LAB
-         #, PLANT # PLANT_RENO_S - is 0 in PLANT_RENO_N
-         , OXYGEN_Ordinal
-         , LOAD_Ordinal
-         , PRSEK_Ordinal) %>%
+  dplyr::select(logDiox,
+                O2, O2COR, NEFFEKT, QRAT
+                #, TIME#, LAB
+                #, PLANT # PLANT_RENO_S - is 0 in PLANT_RENO_N
+                , OXYGEN_Ordinal
+                , LOAD_Ordinal
+                , PRSEK_Ordinal) %>%
   cor() %>%
-  corrplot()
+  corrplot(method = 'color')
+# corrplot()
+dev.off()
+
+# First model
+dioxin %>%
+  dplyr::select(logDiox,
+                O2, O2COR, NEFFEKT, QRAT
+                #, TIME#, LAB
+                #, PLANT # PLANT_RENO_S - is 0 in PLANT_RENO_N
+                , OXYGEN_Ordinal
+                , LOAD_Ordinal
+                , PRSEK_Ordinal) %>%
+  cor() %>%
+  corrplot(method = 'color')
+# Second model
+dioxin %>%
+  dplyr::select(logDiox,
+                O2, O2COR, NEFFEKT, QRAT
+                #, TIME#, LAB
+                #, PLANT # PLANT_RENO_S - is 0 in PLANT_RENO_N
+                , OXYGEN_Ordinal
+                , LOAD_Ordinal
+                , PRSEK_Ordinal) %>%
+  cor() %>%
+  corrplot(method = 'color')
+
 
 #Active variables: 
 #   "Theoretical": OXYGEN, LOAD, PRSEK.
