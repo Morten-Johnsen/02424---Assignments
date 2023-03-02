@@ -108,7 +108,7 @@ dioxin %>%
 names(dioxin)
 
 #Block effects: PLANT (3 plants, RENO_N, RENO_S and KARA), TIME (For RENO_N the experiment
-#was repeated at a later time point, 2, as well.), LAB (Two labs. One in DK and one in USE)
+#was repeated at a later time point, 2, as well.), LAB (Two labs. One in DK and one in USA)
 #considerable measurement noise is expected.
 #Active variables: 
 #   "Theoretical": OXYGEN, LOAD, PRSEK.
@@ -124,16 +124,26 @@ anova(fit, fit2)
 Anova(fit2, type = "III")
 summary(fit2)
 
+postscript("residualplotsFirstModel.eps", horizontal = FALSE, onefile = FALSE, paper = "special",height = 10, width = 11)
 par(mfrow=c(2,2))
-plot(fit2)
+plot(fit2,cex.lab=1.3, cex.axis=1.3, cex.main=2, cex.sub=2)
+dev.off()
+
 
 #### 3) ####
 fit_obs <- lm(logDiox ~ O2COR + NEFFEKT + QRAT + PLANT + TIME + LAB, data = dioxin)
+summary(fit_obs)
 Anova(fit_obs, type = "III")
 
 drop1(fit_obs, test = "F")
 fit_obs1 <- update(fit_obs, .~.-QRAT)
 drop1(fit_obs1, test = "F")
+
+
+postscript("residualplotsSecondModel.eps", horizontal = FALSE, onefile = FALSE, paper = "special",height = 10, width = 11)
+par(mfrow=c(2,2))
+plot(fit_obs1,cex.lab=1.3, cex.axis=1.3, cex.main=2, cex.sub=2)
+dev.off()
 
 anova(fit_obs, fit_obs1) #model performance are the same
 Anova(fit_obs1, type = "III") #type 3 anova
