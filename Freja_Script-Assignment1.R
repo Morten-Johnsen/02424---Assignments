@@ -94,14 +94,6 @@ dioxin %>%
          , PRSEK_Ordinal) %>%
   ggpairs()
 
-dioxin %>%
-  select(logDiox, TIME, LAB_USA_or_KK
-         , PLANT_RENO_N, PLANT_KARA # PLANT_RENO_S - is 0 in PLANT_RENO_N
-         , OXYGEN_Ordinal
-         , LOAD_Ordinal
-         , PRSEK_Ordinal) %>%
-  cor() %>%
-  corrplot()
 
 # Plot the values used in the second models: 
 # Block values and the active values (measured)
@@ -192,16 +184,41 @@ confint(fit3_1)
 
 dioxin %>%
   select(logDiox, TIME,# PLANT_RENO_S - is 0 in PLANT_RENO_N
-         , QROEG,TOVN,TROEG,POVN,CO2,CO,SO2,HCL,H2O) %>%
+         , QROEG,TOVN,TROEG,POVN,CO2,logCO,SO2,logHCL,H2O) %>%
   ggpairs()
 
 
-add1(fit3_1, scope=~.+QROEG+TOVN+TROEG+POVN+CO2+CO+SO2+HCL+H2O+I(QROEG^2)+I(TOVN^2)+
-       I(TROEG^2)+I(POVN^2)+I(CO2^2)+I(CO^2)+I(SO2^2)+I(HCL^2)+I(H2O^2)+
+add1(fit3_1, scope=~.+QROEG+TOVN+TROEG+POVN+CO2+logCO+SO2+logHCL+H2O,test="F")
+
+add1(fit3_1, scope=~.+QROEG+TOVN+TROEG+POVN+CO2+logCO+SO2+logHCL+H2O+I(QROEG^2)+I(TOVN^2)+
+       I(TROEG^2)+I(POVN^2)+I(CO2^2)+I(logCO^2)+I(SO2^2)+I(logHCL^2)+I(H2O^2)+
        I(QROEG*TOVN)+I(QROEG*TROEG)+I(QROEG*POVN)+I(QROEG*SO2)+I(QROEG*H2O)+
-       I(TOVN*CO2)+I(TROEG*CO)+I(TROEG*SO2)+I(TROEG*HCL)+I(TROEG*H2O)+
-       I(CO2*H2O)+
+       I(TOVN*CO2)+I(TROEG*logCO)+I(TROEG*SO2)+I(TROEG*logHCL)+I(TROEG*H2O)+
+       I(CO2*H2O)+I(SO2*H2O)
        ,test="F")
 
+fit7 <- update(fit3_1, .~. + logHCL,data=dioxin)
+summary(fit7)
+
+add1(fit7, scope=~.+I(logHCL*TROEG)
+     ,test="F")
+
+fit7_1 <- update(fit7, .~. + I(logHCL*TROEG),data=dioxin)
+summary(fit7_1)
+
+anova(fit7,fit7_1)
+
+
+fit7_2 <- update(fit7_1, .~. + CO2,data=dioxin)
+summary(fit7_2)
+
+anova(fit7_1,fit7_2)
+
+fit7_3 <- update(fit7_2, .~. + POVN,data=dioxin)
+summary(fit7_3)
+
+anova(fit7_2,fit7_3)
+
+plot(fit7_3)
 
 
