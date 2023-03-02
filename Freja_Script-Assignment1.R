@@ -69,8 +69,7 @@ dioxin %>%
 #considerable measurement noise is expected.
 
 dioxin %>%
-  select(logDiox, TIME, LAB_USA_or_KK
-         , PLANT_RENO_N, PLANT_KARA # PLANT_RENO_S - is 0 in PLANT_RENO_N
+  select(logDiox, TIME,# PLANT_RENO_S - is 0 in PLANT_RENO_N
          , OXYGEN_Ordinal
          , LOAD_Ordinal
          , PRSEK_Ordinal
@@ -112,14 +111,6 @@ dioxin %>%
          , O2, O2COR, NEFFEKT, QRAT) %>%
   ggpairs()
 
-dioxin %>%
-  select(logDiox, TIME, LAB_USA_or_KK
-         , PLANT_RENO_N, PLANT_KARA # PLANT_RENO_S - is 0 in PLANT_RENO_N
-         , O2, O2COR, NEFFEKT, QRAT) %>%
-  cor() %>%
-  corrplot(method = 'ellipse', order = 'AOE', type = 'upper')
-
-
 #Active variables: 
 #   "Theoretical": OXYGEN, LOAD, PRSEK.
 #   "Measured": O2 (O2COR), NEFFEKT, QRAT
@@ -128,27 +119,26 @@ dioxin %>%
 # Model(s) ----------------------------------------------------------------
 #### 2) ####
 # Model with only active and the block variables.
-fit0 <- lm(logDiox ~ factor(OXYGEN) + factor(LOAD) + factor(PRSEK) + 
-            factor(PLANT) + TIME + factor(LAB), data = dioxin)
+fit0 <- lm(logDiox ~ factor(OXYGEN) + LOAD_Ordinal + PRSEK_Ordinal + 
+             factor(PLANT) + TIME + factor(LAB), data = dioxin)
 summary(fit0)
 
-## Reduction of model
+# Model with only active and the block variables.
 # -PRSEK
-fit1 <- lm(logDiox ~ factor(OXYGEN) + factor(LOAD) + 
-               factor(PLANT) + TIME + factor(LAB), data = dioxin)
+fit1 <- lm(logDiox ~ factor(OXYGEN) + LOAD_Ordinal  + 
+             factor(PLANT) + TIME + factor(LAB), data = dioxin)
 summary(fit1)
 
-# Not significant change. Therefore, we like fit1 better because it's simple.
 anova(fit0, fit1)
+# Not significant change. Therefore, we like fit1 better because it's simple.
 
-## Further reduction of model
-# -LAB
-fit2 <- lm(logDiox ~ factor(OXYGEN) + factor(LOAD) + 
-             factor(PLANT) + TIME, data = dioxin)
+# -PRSEK
+fit2 <- lm(logDiox ~  LOAD_Ordinal  + 
+             factor(PLANT) + TIME + factor(LAB), data = dioxin)
 summary(fit2)
 
+anova(fit1,fit2)
 # Significant change, thus, we need to stick with fit1. 
-anova(fit1, fit2)
 
 # Fit plot with labelled outliers
 par(mfrow=c(2,2))
@@ -159,13 +149,13 @@ plot(fit1, pch = 19, col = 'gray50',
 
 #### 3) ####
 # Model with measured and the block variables.
-fit3_0 <- lm(logDiox ~ O2 + O2COR + NEFFEKT + QRAT + 
+fit3_0 <- lm(logDiox ~ O2COR + NEFFEKT + QRAT + 
              factor(PLANT) + TIME + factor(LAB), data = dioxin)
 summary(fit3_0)
 
 # Reduce model
 # - QRAT
-fit3_1 <- lm(logDiox ~ O2 + O2COR + NEFFEKT +
+fit3_1 <- lm(logDiox ~ O2COR + NEFFEKT +
                factor(PLANT) + TIME + factor(LAB), data = dioxin)
 summary(fit3_1)
 
@@ -174,7 +164,7 @@ anova(fit3_0, fit3_1)
 
 # Reduce model
 # - PLANT
-fit3_2 <- lm(logDiox ~ O2 + O2COR + NEFFEKT + TIME + factor(LAB), data = dioxin)
+fit3_2 <- lm(logDiox ~ O2COR + NEFFEKT + TIME + factor(LAB), data = dioxin)
 summary(fit3_2)
 
 anova(fit3_1,fit3_2)
@@ -191,3 +181,27 @@ plot(fit1, pch = 19, col = 'gray50',
      sub='green = variation accounted for by the model')
 
 # We see that the qq plots have a better fit for the model with measured variables (fit2)
+
+
+predict(fit3_1,newdata=data.frame(PLANT="RENO_N", O2COR = 0.5, NEFFEKT = -0.01, 
+                                  TIME = factor("1"), LAB = "KK"),interval="prediction")
+
+
+confint(fit3_1)
+
+
+dioxin %>%
+  select(logDiox, TIME,# PLANT_RENO_S - is 0 in PLANT_RENO_N
+         , QROEG,TOVN,TROEG,POVN,CO2,CO,SO2,HCL,H2O) %>%
+  ggpairs()
+
+
+add1(fit3_1, scope=~.+QROEG+TOVN+TROEG+POVN+CO2+CO+SO2+HCL+H2O+I(QROEG^2)+I(TOVN^2)+
+       I(TROEG^2)+I(POVN^2)+I(CO2^2)+I(CO^2)+I(SO2^2)+I(HCL^2)+I(H2O^2)+
+       I(QROEG*TOVN)+I(QROEG*TROEG)+I(QROEG*POVN)+I(QROEG*SO2)+I(QROEG*H2O)+
+       I(TOVN*CO2)+I(TROEG*CO)+I(TROEG*SO2)+I(TROEG*HCL)+I(TROEG*H2O)+
+       I(CO2*H2O)+
+       ,test="F")
+
+
+

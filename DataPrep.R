@@ -18,7 +18,10 @@ tibble(dioxin)
 
 #Remove rows containing NA
 dioxin <- drop_na(dioxin, names(dioxin))
+# Log transform
 dioxin$logDiox <- log(dioxin$DIOX)
+dioxin$logCO <- log(dioxin$CO)
+dioxin$logHCL <- log(dioxin$HCL)
 
 #Block effects: PLANT (3 plants, RENO_N, RENO_S and KARA), TIME (For RENO_N the experiment
 #was repeated at a later time point, 2, as well.), LAB (Two labs. One in DK and one in USE)
@@ -41,3 +44,9 @@ dioxin$LAB <- factor(dioxin$LAB)
 dioxin$OXYGEN <- factor(dioxin$OXYGEN)
 dioxin$LOAD <- factor(dioxin$LOAD)
 dioxin$PRSEK <- factor(dioxin$PRSEK)
+
+
+
+
+
+
