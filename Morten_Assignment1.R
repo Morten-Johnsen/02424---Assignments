@@ -23,7 +23,7 @@ names(dioxin)
 #   "Theoretical": OXYGEN, LOAD, PRSEK.
 #   "Measured": O2 (O2COR), NEFFEKT, QRAT
 #### 2) ####
-fit <- lm(logDiox ~ PLANT + TIME + LAB+LOAD_Ordinal + OXYGEN_Ordinal + PRSEK_Ordinal, data = dioxin)
+fit <- lm(logDiox ~ PLANT + TIME + LAB + LOAD_Ordinal + OXYGEN_Ordinal + PRSEK_Ordinal, data = dioxin)
 #plot(fit)
 drop1(fit, test = "F")
 fit2 <- update(fit, .~.-PRSEK_Ordinal)
@@ -54,15 +54,18 @@ qqPlot(fit_obs1)
 confint(fit_obs1, level = 0.99)
 
 dioxin[c(13,24,11,20),] %>%
-  dplyr::select(PLANT, LAB, TIME, NEFFEKT, O2COR, logDiox)
+  dplyr::select(PLANT, LAB, TIME, NEFFEKT, O2COR, logDiox, DIOX)
 
 dioxin$outlier <- "No"
 dioxin$outlier[c(13,24,11,20)] <- "Yes"
 dioxin$chrLog <- as.character(round(dioxin$logDiox,2))
 library(gghighlight)
 ggplot(dioxin)+
-  geom_point(aes(x = PRSEK, y = logDiox, fill = outlier))+
+  geom_point(aes(x = TIME, y = logDiox, fill = outlier))+
   gghighlight(outlier == "Yes", label_key = chrLog)
+
+ggplot(dioxin)+
+  geom_histogram(aes(x = DIOX, fill = outlier))
 
 #4)
 predict(fit_obs1, newdata = data.frame("PLANT" = factor("RENO_N"), 
@@ -89,6 +92,7 @@ coef(fit_obs1)
 #PLANT_S predicts -2.11 log(ppm) less than plant KARA
 #PLANT_N predicts -0.57 log(ppm) less than plant KARA
 
+
 #7)
 par(mfrow=c(2,3))
 plot(dioxin$O2COR, fit_obs1$residuals)
@@ -107,6 +111,6 @@ drop1(model, test = "F")
 par(mfrow = c(2,2))
 plot(model)
 
-
 par(mfrow=c(1,1))
 hist(dioxin$DIOX, breaks = 20)
+
