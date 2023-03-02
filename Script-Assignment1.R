@@ -59,44 +59,37 @@ lambda.hat + qt(c(alpha/2, 1-alpha/2), df = length(dioxin$DIOX) - 1) * sd_reg[1]
 dioxin$DIOX_boxcox <- Trans.eq1(lambda.hat, dioxin$DIOX)
 hist(dioxin$DIOX_boxcox, breaks = 5)
 
+# TODO Color code passive vs active, and measured vs. ordinal
 dioxin %>%
-  dplyr::select(-PLANT, -LAB, -OXYGEN, -LOAD, -PRSEK, -OBSERV) %>%
+  dplyr::select(-PLANT, -LAB, -OXYGEN, -LOAD, -PRSEK, -OBSERV, -DIOX_boxcox) %>%
   melt() %>%
   ggplot()+
   geom_histogram(aes(x = value), bins = 10)+
   facet_wrap(~variable, scales = "free")
 
+# TODO: Do this to the ones not in the plot
+table(dioxin$PLANT)
+table(dioxin$LAB)
+
 #Block effects: PLANT (3 plants, RENO_N, RENO_S and KARA), TIME (For RENO_N the experiment
 #was repeated at a later time point, 2, as well.), LAB (Two labs. One in DK and one in USE)
 #considerable measurement noise is expected.
 
-dioxin %>%
-  dplyr::select(logDiox, TIME, LAB
-         , PLANT # PLANT_RENO_S - is 0 in PLANT_RENO_N
-         , OXYGEN_Ordinal
-         , LOAD_Ordinal
-         , PRSEK_Ordinal
-         , O2, O2COR, NEFFEKT, QRAT) %>%
-  ggpairs()
-
 # Plot ordinal values versus the actually measured values
-dioxin %>%
-  dplyr::select(OXYGEN_Ordinal
-         , LOAD_Ordinal
-         , PRSEK_Ordinal
-         , O2, O2COR, NEFFEKT, QRAT) %>%
-  ggpairs()
+#dioxin %>%
+#  dplyr::select(logDiox, OXYGEN_Ordinal
+#         , LOAD_Ordinal
+#         , PRSEK_Ordinal
+#         , O2, O2COR, NEFFEKT, QRAT) %>%
+#  ggpairs()
 
-# Plot the values used in the first models: 
-# Block values and the active values (ordinal)
-dioxin %>%
-  dplyr::select(logDiox, TIME, LAB
-         , PLANT # PLANT_RENO_S - is 0 in PLANT_RENO_N
-         , OXYGEN_Ordinal
-         , LOAD_Ordinal
-         , PRSEK_Ordinal) %>%
-  ggpairs()
 
+
+# Make correlation plot of all variables:
+#       - Ordinal vs. measured
+#       - Variables in first model
+#       - Variables in second model
+par(mfrow=c(1,1))
 dioxin %>%
   dplyr::select(logDiox#, TIME#, LAB
          #, PLANT # PLANT_RENO_S - is 0 in PLANT_RENO_N
@@ -105,22 +98,6 @@ dioxin %>%
          , PRSEK_Ordinal) %>%
   cor() %>%
   corrplot()
-
-# Plot the values used in the second models: 
-# Block values and the active values (measured)
-dioxin %>%
-  dplyr::select(logDiox, TIME, LAB
-         , PLANT # PLANT_RENO_S - is 0 in PLANT_RENO_N
-         , O2, O2COR, NEFFEKT, QRAT) %>%
-  ggpairs()
-
-dioxin %>%
-  dplyr::select(logDiox#, TIME, LAB
-         #, PLANT # PLANT_RENO_S - is 0 in PLANT_RENO_N
-         , O2, O2COR, NEFFEKT, QRAT) %>%
-  cor() %>%
-  corrplot(method = 'ellipse', order = 'AOE', type = 'upper')
-
 
 #Active variables: 
 #   "Theoretical": OXYGEN, LOAD, PRSEK.

@@ -221,4 +221,6 @@ anova(fit7_2,fit7_3)
 
 plot(fit7_3)
 
-
+# 9)
+1/sd(dioxin[dioxin$LAB=="KK",]$logDiox)
+1/sd(dioxin[dioxin$LAB=="USA",]$logDiox)
