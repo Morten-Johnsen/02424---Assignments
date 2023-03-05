@@ -29,9 +29,9 @@ LAB_USA <- as.numeric(dioxin$LAB == "USA")
 #create design matrix
 X <- cbind(1, dioxin$O2COR, dioxin$NEFFEKT, RENO_N, RENO_S, TIME_2, LAB_USA)
 
-beta <- solve(t(X)%*%X)%*%t(X)%*%y
+beta <- solve(t(X)%*%X)%*%t(X)%*%y #p. 49 eq. 3.27
 library(numDeriv)
-sd_e <- sqrt(t(y - X %*% beta) %*% (y - X %*% beta) / (dim(X)[1] - dim(X)[2]))
+sd_e <- sqrt(t(y - X %*% beta) %*% (y - X %*% beta) / (dim(X)[1] - dim(X)[2])) #p. 53 eqe. 3.40
 
 get.hessian <- function(beta, sigma = sd_e, design = X, target = y){
   e <- target - design %*% beta
