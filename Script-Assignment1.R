@@ -170,11 +170,45 @@ anova(fit, fit2)
 Anova(fit2, type = "III")
 summary(fit2)
 
+confint(fit2)
+
+cooksD  <- cooks.distance(fit2)
+cooksD[cooksD>(3*mean(cooksD))]
+influential <- dioxin[cooksD>(3*mean(cooksD)),]
+mean(dioxin$DIOX)
+
 postscript("residualplotsFirstModel.eps", horizontal = FALSE, onefile = FALSE, paper = "special",height = 10, width = 11)
 par(mfrow=c(2,2))
 plot(fit2,cex.lab=1.3, cex.axis=1.3, cex.main=2, cex.sub=2)
 dev.off()
 
+# Make figures that highlight the outliers
+
+# First with diox
+postscript("outliers_diox.eps", horizontal = FALSE, onefile = FALSE, paper = "special",height = 4, width = 13)
+plotData <- dioxin %>%
+  dplyr::select(DIOX, PLANT, TIME, LAB, LOAD, OXYGEN)  %>%
+  melt(id = 'DIOX') 
+ggplot(plotData, aes(x = value, y = DIOX)) +
+  geom_point() +
+  xlab("") + 
+  geom_point(data = plotData[cooksD>(3*mean(cooksD)),], size = 3, color = "red") +
+  facet_grid(. ~ variable,scales = "free_x", switch = 'x') +
+  theme(text = element_text(size = 18))    
+dev.off()
+
+# Then with logdiox
+postscript("outliers_logdiox.eps", horizontal = FALSE, onefile = FALSE, paper = "special",height = 4, width = 13)
+plotData1 <- dioxin %>%
+  dplyr::select(logDiox, PLANT, TIME, LAB, LOAD, OXYGEN)  %>%
+  melt(id = 'logDiox') 
+ggplot(plotData1, aes(x = value, y = logDiox)) +
+  geom_point() + 
+  xlab("") + 
+  geom_point(data = plotData1[cooksD>(3*mean(cooksD)),], size = 3, color = "red") +
+  facet_grid(. ~ variable,scales = "free_x", switch = 'x') + 
+  theme(text = element_text(size = 18))    
+dev.off()
 
 #### 3) ####
 fit_obs <- lm(logDiox ~ O2COR + NEFFEKT + QRAT + PLANT + TIME + LAB, data = dioxin)
@@ -195,21 +229,40 @@ anova(fit_obs, fit_obs1) #model performance are the same
 Anova(fit_obs1, type = "III") #type 3 anova
 
 summary(fit_obs1)
-plot(fit_obs1)
-par(mfrow=c(1,1))
-qqPlot(fit_obs1)
-confint(fit_obs1, level = 0.99)
 
-dioxin[c(13,24,11,20),] %>%
-  dplyr::select(PLANT, LAB, TIME, NEFFEKT, O2COR, logDiox)
+cooksD  <- cooks.distance(fit_obs1)
+cooksD[cooksD>(3*mean(cooksD))]
+influential <- dioxin[cooksD>(3*mean(cooksD)),]
+mean(dioxin$DIOX)
 
-dioxin$outlier <- "No"
-dioxin$outlier[c(13,24,11,20)] <- "Yes"
-dioxin$chrLog <- as.character(round(dioxin$logDiox,2))
-library(gghighlight)
-ggplot(dioxin)+
-  geom_point(aes(x = PRSEK, y = logDiox, fill = outlier))+
-  gghighlight(outlier == "Yes", label_key = chrLog)
+# Make figures that highlight the outliers
+
+# First with diox
+postscript("outliers_diox_measured.eps", horizontal = FALSE, onefile = FALSE, paper = "special",height = 4, width = 13)
+plotData <- dioxin %>%
+  dplyr::select(DIOX, PLANT, TIME, LAB, LOAD, OXYGEN)  %>%
+  melt(id = 'DIOX') 
+ggplot(plotData, aes(x = value, y = DIOX)) +
+  geom_point() +
+  xlab("") + 
+  geom_point(data = plotData[cooksD>(3*mean(cooksD)),], size = 3, color = "red") +
+  facet_grid(. ~ variable,scales = "free_x", switch = 'x') +
+  theme(text = element_text(size = 18))    
+dev.off()
+
+# Then with logdiox
+postscript("outliers_logdiox_measured.eps", horizontal = FALSE, onefile = FALSE, paper = "special",height = 4, width = 13)
+plotData1 <- dioxin %>%
+  dplyr::select(logDiox, PLANT, TIME, LAB, LOAD, OXYGEN)  %>%
+  melt(id = 'logDiox') 
+ggplot(plotData1, aes(x = value, y = logDiox)) +
+  geom_point() + 
+  xlab("") + 
+  geom_point(data = plotData1[cooksD>(3*mean(cooksD)),], size = 3, color = "red") +
+  facet_grid(. ~ variable,scales = "free_x", switch = 'x') + 
+  theme(text = element_text(size = 18))    
+dev.off()
+
 
 #4)
 predict(fit_obs1, newdata = data.frame("PLANT" = factor("RENO_N"), 
