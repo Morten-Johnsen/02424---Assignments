@@ -314,6 +314,8 @@ add1(fit_obs1, scope=~.+QROEG+TOVN+TROEG+POVN+CO2+logCO+SO2+logHCL+H2O+I(QROEG^2
 fit_pas1 <- update(fit_obs1, .~. + logHCL,data=dioxin)
 summary(fit_pas1)
 
+anova(fit_obs1,fit_pas1)
+
 add1(fit_pas1, scope=~.+QROEG+TOVN+TROEG+POVN+CO2+logCO+SO2+logHCL+H2O+I(QROEG^2)+I(TOVN^2)+
        I(TROEG^2)+I(POVN^2)+I(CO2^2)+I(logCO^2)+I(SO2^2)+I(logHCL^2)+I(H2O^2)+
        I(QROEG*TOVN)+I(QROEG*TROEG)+I(QROEG*POVN)+I(QROEG*SO2)+I(QROEG*H2O)+
@@ -363,8 +365,20 @@ add1(fit_pas4, scope=~.+QROEG+TOVN+TROEG+POVN+CO2+logCO+SO2+logHCL+H2O+I(QROEG^2
        I(CO2*H2O)+I(SO2*H2O)
      ,test="F")
 
+# Do not add any more terms.
+
+postscript("residualplotsFinalModel.eps", horizontal = FALSE, onefile = FALSE, paper = "special",height = 10, width = 11)
 par(mfrow=c(2,2))
+plot(fit_pas4,cex.lab=1.3, cex.axis=1.3, cex.main=2, cex.sub=2)
+dev.off()
 plot(fit_pas4)
+confint(fit_pas4)
+
+# Leverages
+cooksD  <- cooks.distance(fit_pas4)
+cooksD[cooksD>(3*mean(cooksD))]
+influential <- dioxin[cooksD>(3*mean(cooksD)),]
+
 
 
 # possible likelihood for 9)
