@@ -14,10 +14,10 @@ if (Sys.getenv('USER') == "mortenjohnsen"){
 
 source("DataPrep.R")
 
-Trans.eq1 <- function(lambda, y = dioxin$DIOX){
-  y_lambda <- ((y)^lambda - 1)/lambda#, lambda > 0
-  return(y_lambda)
-}
+# Trans.eq1 <- function(lambda, y = dioxin$DIOX){
+#   y_lambda <- ((y)^lambda - 1)/lambda#, lambda > 0
+#   return(y_lambda)
+# }
 lambda_NLL <- function(theta, y = dioxin$DIOX){
   lambda <- theta[1]
   y_lambda <- Trans.eq1(lambda, y)
@@ -62,7 +62,7 @@ hist(dioxin$DIOX_boxcox, breaks = 5)
 # TODO Color code passive vs active, and measured vs. ordinal
 postscript("histograms_for_all.eps", horizontal = FALSE, onefile = FALSE, paper = "special",height = 10, width = 10)
 dioxin %>%
-  dplyr::select(-PLANT, -LAB, -OXYGEN, -LOAD, -PRSEK, -OBSERV, -DIOX_boxcox) %>%
+  dplyr::select(-PLANT, -LAB, -OXYGEN, -LOAD, -PRSEK, -OBSERV, -DIOX_boxcox, -logCO) %>%
   melt() %>%
   mutate(color = c(rep("black", 52), 
                    rep("green", 52*4), 
@@ -87,6 +87,8 @@ dev.off()
 table(dioxin$PLANT)
 table(dioxin$LAB)
 table(dioxin$TIME)
+
+
 
 #Block effects: PLANT (3 plants, RENO_N, RENO_S and KARA), TIME (For RENO_N the experiment
 #was repeated at a later time point, 2, as well.), LAB (Two labs. One in DK and one in USE)
@@ -122,33 +124,34 @@ dioxin %>%
 dev.off()
 
 # First model
+postscript("ggpairs_first_model.eps", horizontal = FALSE, onefile = FALSE, paper = "special",height = 10, width = 10)
 dioxin %>%
-  dplyr::select(logDiox,
-                O2, O2COR, NEFFEKT, QRAT
-                #, TIME#, LAB
-                #, PLANT # PLANT_RENO_S - is 0 in PLANT_RENO_N
-                , OXYGEN_Ordinal
-                , LOAD_Ordinal
-                , PRSEK_Ordinal) %>%
-  cor() %>%
-  corrplot(method = 'color')
+  dplyr::select(logDiox, # PLANT_RENO_S - is 0 in PLANT_RENO_N
+                PLANT,
+                TIME,
+                LAB,
+                LOAD_Ordinal,
+                OXYGEN_Ordinal) %>%
+  ggpairs()
+dev.off()
+
+
 # Second model
+postscript("ggpairs_second_model.eps", horizontal = FALSE, onefile = FALSE, paper = "special",height = 10, width = 10)
 dioxin %>%
-  dplyr::select(logDiox,
-                O2, O2COR, NEFFEKT, QRAT
-                #, TIME#, LAB
-                #, PLANT # PLANT_RENO_S - is 0 in PLANT_RENO_N
-                , OXYGEN_Ordinal
-                , LOAD_Ordinal
-                , PRSEK_Ordinal) %>%
-  cor() %>%
-  corrplot(method = 'color')
+  dplyr::select(logDiox, # PLANT_RENO_S - is 0 in PLANT_RENO_N
+                PLANT,
+                TIME,
+                LAB,
+                NEFFEKT,
+                O2COR) %>%
+  ggpairs()
+dev.off()
 
 
 #Active variables: 
 #   "Theoretical": OXYGEN, LOAD, PRSEK.
 #   "Measured": O2 (O2COR), NEFFEKT, QRAT
-
 
 # Model(s) ----------------------------------------------------------------
 names(dioxin)
@@ -397,3 +400,10 @@ est.USA
 
 1/est.KK[2]
 1/est.USA[2]
+
+
+
+
+# ForestPlots
+forestmodel::forest_model(fit2)
+forestmodel::forest_model(fit_obs1)
