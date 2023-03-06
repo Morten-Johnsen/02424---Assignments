@@ -298,15 +298,15 @@ ggplot(dioxin)+
 # Look at the passive variables to choose some interactions to model
 dioxin %>%
   dplyr::select(logDiox # PLANT_RENO_S - is 0 in PLANT_RENO_N
-         , QROEG,TOVN,TROEG,POVN,CO2,logCO,SO2,logHCL,H2O) %>%
+         , QROEG,TOVN,TROEG,POVN,CO2,boxcoxCO,SO2,logHCL,H2O) %>%
   ggpairs()
 
 
 # Look at different additions to the model
-add1(fit_obs1, scope=~.+QROEG+TOVN+TROEG+POVN+CO2+logCO+SO2+logHCL+H2O+I(QROEG^2)+I(TOVN^2)+
-       I(TROEG^2)+I(POVN^2)+I(CO2^2)+I(logCO^2)+I(SO2^2)+I(logHCL^2)+I(H2O^2)+
+add1(fit_obs1, scope=~.+QROEG+TOVN+TROEG+POVN+CO2+boxcoxCO+SO2+logHCL+H2O+I(QROEG^2)+I(TOVN^2)+
+       I(TROEG^2)+I(POVN^2)+I(CO2^2)+I(boxcoxCO^2)+I(SO2^2)+I(logHCL^2)+I(H2O^2)+
        I(QROEG*TOVN)+I(QROEG*TROEG)+I(QROEG*POVN)+I(QROEG*SO2)+I(QROEG*H2O)+
-       I(TOVN*CO2)+I(TROEG*logCO)+I(TROEG*SO2)+I(TROEG*logHCL)+I(TROEG*H2O)+
+       I(TOVN*CO2)+I(TROEG*boxcoxCO)+I(TROEG*SO2)+I(TROEG*logHCL)+I(TROEG*H2O)+
        I(CO2*H2O)+I(SO2*H2O)
      ,test="F")
 
@@ -316,10 +316,10 @@ summary(fit_pas1)
 
 anova(fit_obs1,fit_pas1)
 
-add1(fit_pas1, scope=~.+QROEG+TOVN+TROEG+POVN+CO2+logCO+SO2+logHCL+H2O+I(QROEG^2)+I(TOVN^2)+
-       I(TROEG^2)+I(POVN^2)+I(CO2^2)+I(logCO^2)+I(SO2^2)+I(logHCL^2)+I(H2O^2)+
+add1(fit_pas1, scope=~.+QROEG+TOVN+TROEG+POVN+CO2+boxcoxCO+SO2+logHCL+H2O+I(QROEG^2)+I(TOVN^2)+
+       I(TROEG^2)+I(POVN^2)+I(CO2^2)+I(boxcoxCO^2)+I(SO2^2)+I(logHCL^2)+I(H2O^2)+
        I(QROEG*TOVN)+I(QROEG*TROEG)+I(QROEG*POVN)+I(QROEG*SO2)+I(QROEG*H2O)+
-       I(TOVN*CO2)+I(TROEG*logCO)+I(TROEG*SO2)+I(TROEG*logHCL)+I(TROEG*H2O)+
+       I(TOVN*CO2)+I(TROEG*boxcoxCO)+I(TROEG*SO2)+I(TROEG*logHCL)+I(TROEG*H2O)+
        I(CO2*H2O)+I(SO2*H2O)
      ,test="F")
 
@@ -330,10 +330,10 @@ summary(fit_pas2)
 anova(fit_pas1,fit_pas2)
 # Models are significantly different. Therefore, we keep the new one.
 
-add1(fit_pas2, scope=~.+QROEG+TOVN+TROEG+POVN+CO2+logCO+SO2+logHCL+H2O+I(QROEG^2)+I(TOVN^2)+
-       I(TROEG^2)+I(POVN^2)+I(CO2^2)+I(logCO^2)+I(SO2^2)+I(logHCL^2)+I(H2O^2)+
+add1(fit_pas2, scope=~.+QROEG+TOVN+TROEG+POVN+CO2+boxcoxCO+SO2+logHCL+H2O+I(QROEG^2)+I(TOVN^2)+
+       I(TROEG^2)+I(POVN^2)+I(CO2^2)+I(boxcoxCO^2)+I(SO2^2)+I(logHCL^2)+I(H2O^2)+
        I(QROEG*TOVN)+I(QROEG*TROEG)+I(QROEG*POVN)+I(QROEG*SO2)+I(QROEG*H2O)+
-       I(TOVN*CO2)+I(TROEG*logCO)+I(TROEG*SO2)+I(TROEG*logHCL)+I(TROEG*H2O)+
+       I(TOVN*CO2)+I(TROEG*boxcoxCO)+I(TROEG*SO2)+I(TROEG*logHCL)+I(TROEG*H2O)+
        I(CO2*H2O)+I(SO2*H2O)
      ,test="F")
 
@@ -344,10 +344,10 @@ summary(fit_pas3)
 anova(fit_pas2,fit_pas3)
 # Models are significantly different. Therefore, we keep the new one.
 
-add1(fit_pas3, scope=~.+QROEG+TOVN+TROEG+POVN+CO2+logCO+SO2+logHCL+H2O+I(QROEG^2)+I(TOVN^2)+
-       I(TROEG^2)+I(POVN^2)+I(CO2^2)+I(logCO^2)+I(SO2^2)+I(logHCL^2)+I(H2O^2)+
+add1(fit_pas3, scope=~.+QROEG+TOVN+TROEG+POVN+CO2+boxcoxCO+SO2+logHCL+H2O+I(QROEG^2)+I(TOVN^2)+
+       I(TROEG^2)+I(POVN^2)+I(CO2^2)+I(boxcoxCO^2)+I(SO2^2)+I(logHCL^2)+I(H2O^2)+
        I(QROEG*TOVN)+I(QROEG*TROEG)+I(QROEG*POVN)+I(QROEG*SO2)+I(QROEG*H2O)+
-       I(TOVN*CO2)+I(TROEG*logCO)+I(TROEG*SO2)+I(TROEG*logHCL)+I(TROEG*H2O)+
+       I(TOVN*CO2)+I(TROEG*boxcoxCO)+I(TROEG*SO2)+I(TROEG*logHCL)+I(TROEG*H2O)+
        I(CO2*H2O)+I(SO2*H2O)
      ,test="F")
 
@@ -358,10 +358,10 @@ summary(fit_pas4)
 anova(fit_pas3,fit_pas4)
 # Models are significantly different. Therefore, we keep the new one.
 
-add1(fit_pas4, scope=~.+QROEG+TOVN+TROEG+POVN+CO2+logCO+SO2+logHCL+H2O+I(QROEG^2)+I(TOVN^2)+
-       I(TROEG^2)+I(POVN^2)+I(CO2^2)+I(logCO^2)+I(SO2^2)+I(logHCL^2)+I(H2O^2)+
+add1(fit_pas4, scope=~.+QROEG+TOVN+TROEG+POVN+CO2+boxcoxCO+SO2+logHCL+H2O+I(QROEG^2)+I(TOVN^2)+
+       I(TROEG^2)+I(POVN^2)+I(CO2^2)+I(boxcoxCO^2)+I(SO2^2)+I(logHCL^2)+I(H2O^2)+
        I(QROEG*TOVN)+I(QROEG*TROEG)+I(QROEG*POVN)+I(QROEG*SO2)+I(QROEG*H2O)+
-       I(TOVN*CO2)+I(TROEG*logCO)+I(TROEG*SO2)+I(TROEG*logHCL)+I(TROEG*H2O)+
+       I(TOVN*CO2)+I(TROEG*boxcoxCO)+I(TROEG*SO2)+I(TROEG*logHCL)+I(TROEG*H2O)+
        I(CO2*H2O)+I(SO2*H2O)
      ,test="F")
 

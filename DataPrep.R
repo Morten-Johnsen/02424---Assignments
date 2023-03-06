@@ -16,6 +16,10 @@ if (Sys.getenv('USER') == "mortenjohnsen"){
 dioxin <- read.csv("./dioxin.csv")
 tibble(dioxin)
 
+Trans.eq1 <- function(lambda, y = dioxin$DIOX){
+  y_lambda <- ((y)^lambda - 1)/lambda#, lambda > 0
+  return(y_lambda)
+}
 #Remove rows containing NA
 dioxin <- drop_na(dioxin, names(dioxin))
 # Log transform
