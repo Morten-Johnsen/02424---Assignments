@@ -54,11 +54,48 @@
            >>
          ] setcolorspace } bind def
 /srgb { setcolor } bind def
+% begin encoding
+/WinAnsiEncoding [
+ /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+ /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+ /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+ /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+ /space /exclam /quotedbl /numbersign /dollar /percent /ampersand /quoteright
+ /parenleft /parenright /asterisk /plus /comma /minus /period /slash
+ /zero /one /two /three /four /five /six /seven
+ /eight /nine /colon /semicolon /less /equal /greater /question
+ /at /A /B /C /D /E /F /G
+ /H /I /J /K /L /M /N /O
+ /P /Q /R /S /T /U /V /W
+ /X /Y /Z /bracketleft /backslash /bracketright /asciicircum /underscore
+ /grave /a /b /c /d /e /f /g
+ /h /i /j /k /l /m /n /o
+ /p /q /r /s /t /u /v /w
+ /x /y /z /braceleft /bar /braceright /asciitilde /.notdef
+ /Euro /.notdef /quotesinglbase /florin /quotedblbase /ellipsis /dagger /daggerdbl
+ /circumflex /perthousand /Scaron /guilsinglleft /OE /.notdef /Zcaron /.notdef
+ /.notdef /quoteleft /quoteright /quotedblleft /quotedblright /bullet /endash /emdash
+ /tilde /trademark /scaron /guilsinglright /oe /.notdef /zcaron /Ydieresis
+ /space /exclamdown /cent /sterling /currency /yen /brokenbar /section
+ /dieresis /copyright /ordfeminine /guillemotleft /logicalnot /hyphen /registered /macron
+ /degree /plusminus /twosuperior /threesuperior /acute /mu /paragraph /periodcentered
+ /cedilla /onesuperior /ordmasculine /guillemotright /onequarter /onehalf /threequarters /questiondown
+ /Agrave /Aacute /Acircumflex /Atilde /Adieresis /Aring /AE /Ccedilla
+ /Egrave /Eacute /Ecircumflex /Edieresis /Igrave /Iacute /Icircumflex /Idieresis
+ /Eth /Ntilde /Ograve /Oacute /Ocircumflex /Otilde /Odieresis /multiply
+ /Oslash /Ugrave /Uacute /Ucircumflex /Udieresis /Yacute /Thorn /germandbls
+ /agrave /aacute /acircumflex /atilde /adieresis /aring /ae /ccedilla
+ /egrave /eacute /ecircumflex /edieresis /igrave /iacute /icircumflex /idieresis
+ /eth /ntilde /ograve /oacute /ocircumflex /otilde /odieresis /divide
+ /oslash /ugrave /uacute /ucircumflex /udieresis /yacute /thorn /ydieresis
+]
+ def
+% end encoding
 %%IncludeResource: font Helvetica
 /Helvetica findfont
 dup length dict begin
   {1 index /FID ne {def} {pop pop} ifelse} forall
-  /Encoding ISOLatin1Encoding def
+  /Encoding WinAnsiEncoding def
   currentdict
   end
 /Font1 exch definefont pop
@@ -66,7 +103,7 @@ dup length dict begin
 /Helvetica-Bold findfont
 dup length dict begin
   {1 index /FID ne {def} {pop pop} ifelse} forall
-  /Encoding ISOLatin1Encoding def
+  /Encoding WinAnsiEncoding def
   currentdict
   end
 /Font2 exch definefont pop
@@ -74,7 +111,7 @@ dup length dict begin
 /Helvetica-Oblique findfont
 dup length dict begin
   {1 index /FID ne {def} {pop pop} ifelse} forall
-  /Encoding ISOLatin1Encoding def
+  /Encoding WinAnsiEncoding def
   currentdict
   end
 /Font3 exch definefont pop
@@ -82,7 +119,7 @@ dup length dict begin
 /Helvetica-BoldOblique findfont
 dup length dict begin
   {1 index /FID ne {def} {pop pop} ifelse} forall
-  /Encoding ISOLatin1Encoding def
+  /Encoding WinAnsiEncoding def
   currentdict
   end
 /Font4 exch definefont pop
@@ -415,31 +452,31 @@ o
 1 setlinejoin
 10.00 setmiterlimit
 np
-33.48 60.86 m
+33.48 55.83 m
 118.37 0 l
 o
 np
-33.48 106.09 m
+33.48 91.01 m
 118.37 0 l
 o
 np
-33.48 151.31 m
+33.48 126.19 m
 118.37 0 l
 o
 np
-40.91 31.91 m
+33.48 161.36 m
+118.37 0 l
+o
+np
+60.72 31.91 m
 0 139.30 l
 o
 np
-77.30 31.91 m
+93.69 31.91 m
 0 139.30 l
 o
 np
-113.70 31.91 m
-0 139.30 l
-o
-np
-150.09 31.91 m
+126.65 31.91 m
 0 139.30 l
 o
 1.07 setlinewidth
@@ -449,36 +486,44 @@ np
 118.37 0 l
 o
 np
-33.48 83.47 m
+33.48 73.42 m
 118.37 0 l
 o
 np
-33.48 128.70 m
+33.48 108.60 m
 118.37 0 l
 o
 np
-59.11 31.91 m
+33.48 143.78 m
+118.37 0 l
+o
+np
+44.24 31.91 m
 0 139.30 l
 o
 np
-95.50 31.91 m
+77.20 31.91 m
 0 139.30 l
 o
 np
-131.89 31.91 m
+110.17 31.91 m
+0 139.30 l
+o
+np
+143.13 31.91 m
 0 139.30 l
 o
 /bg { 0 0.7490 0.7686 srgb } def
-38.86 38.24 10.76 36.18 r p2
-49.62 38.24 10.76 81.41 r p2
-60.38 38.24 10.76 126.64 r p2
-71.14 38.24 10.76 54.27 r p2
-81.90 38.24 10.76 63.32 r p2
-92.66 38.24 10.76 63.32 r p2
-103.42 38.24 10.76 27.14 r p2
-114.19 38.24 10.76 9.05 r p2
-124.95 38.24 10.76 0.00 r p2
-135.71 38.24 10.76 9.05 r p2
+38.86 38.24 10.76 14.07 r p2
+49.62 38.24 10.76 7.04 r p2
+60.38 38.24 10.76 21.11 r p2
+71.14 38.24 10.76 35.18 r p2
+81.90 38.24 10.76 14.07 r p2
+92.66 38.24 10.76 126.64 r p2
+103.42 38.24 10.76 28.14 r p2
+114.19 38.24 10.76 70.36 r p2
+124.95 38.24 10.76 35.18 r p2
+135.71 38.24 10.76 14.07 r p2
 0.00 0.00 720.00 720.00 cl
 172.27 558.01 290.64 697.31 cl
 /bg { 0.9216 0.9216 0.9216 srgb } def
@@ -1930,7 +1975,9 @@ o
 33.48 171.21 118.37 17.21 r p2
 /Font1 findfont 9 s
 0.1020 0.1020 0.1020 srgb
-92.66 176.59 (logCO) .5 0 t
+71.66 176.59 (bo) 0 ta
+-0.270 (xco) tb
+-0.270 (xCO) tb gr
 33.48 171.21 151.85 188.42 cl
 33.48 171.21 151.85 188.42 cl
 33.48 171.21 151.85 188.42 cl
@@ -2206,24 +2253,29 @@ o
 1 setlinejoin
 10.00 setmiterlimit
 np
-59.11 29.17 m
+44.24 29.17 m
 0 2.74 l
 o
 np
-95.50 29.17 m
+77.20 29.17 m
 0 2.74 l
 o
 np
-131.89 29.17 m
+110.17 29.17 m
+0 2.74 l
+o
+np
+143.13 29.17 m
 0 2.74 l
 o
 0.00 0.00 720.00 720.00 cl
 0.00 0.00 720.00 720.00 cl
 /Font1 findfont 9 s
 0.3020 0.3020 0.3020 srgb
-59.11 20.52 (2) .5 0 t
-95.50 20.52 (4) .5 0 t
-131.89 20.52 (6) .5 0 t
+44.24 20.52 (0.0) .5 0 t
+77.20 20.52 (0.5) .5 0 t
+110.17 20.52 (1.0) .5 0 t
+143.13 20.52 (1.5) .5 0 t
 0.00 0.00 720.00 720.00 cl
 0.00 0.00 720.00 720.00 cl
 0.00 0.00 720.00 720.00 cl
@@ -3807,8 +3859,9 @@ o
 /Font1 findfont 9 s
 0.3020 0.3020 0.3020 srgb
 28.55 35.01 (0) 1 0 t
-28.55 80.24 (5) 1 0 t
-28.55 125.47 (10) 1 0 t
+28.55 70.19 (5) 1 0 t
+28.55 105.37 (10) 1 0 t
+28.55 140.54 (15) 1 0 t
 0.00 0.00 720.00 720.00 cl
 0.00 0.00 720.00 720.00 cl
 0.00 0.00 720.00 720.00 cl
@@ -3823,11 +3876,15 @@ np
 2.74 0 l
 o
 np
-30.74 83.47 m
+30.74 73.42 m
 2.74 0 l
 o
 np
-30.74 128.70 m
+30.74 108.60 m
+2.74 0 l
+o
+np
+30.74 143.78 m
 2.74 0 l
 o
 0.00 0.00 720.00 720.00 cl
