@@ -401,9 +401,46 @@ est.USA
 1/est.KK[2]
 1/est.USA[2]
 
+#skal anvende en likelihood function som tager theta = c(beta, psi), y, X som input
+#og returnerer sandsynligheden for at observere den givne y.
+y <- dioxin$logDiox
+RENO_N <- as.numeric(dioxin$PLANT == "RENO_N")
+RENO_S <- as.numeric(dioxin$PLANT == "RENO_S")
+TIME_2 <- as.numeric(dioxin$TIME == 2)
+LAB_USA <- as.numeric(dioxin$LAB == "USA")
 
+#create design matrix
+X <- cbind(1, dioxin$O2COR, dioxin$NEFFEKT, RENO_N, RENO_S, TIME_2, LAB_USA, 
+           dioxin$logHCL, dioxin$CO2, dioxin$POVN, dioxin$TROEG)
 
+ml.function <- function(theta, y, X){
+  wUSA <- theta[1]
+  wKK <- theta[2]
+  w.diag <- rep(NA, dim(X)[1])
+  w.diag[X[,7] == 1] <- wUSA
+  w.diag[X[,7] == 0] <- wKK
+  SIGMA <- diag(w.diag)
+  
+  #beta <- solve(t(X)%*%solve(SIGMA)%*%X)%*%t(X)%*%solve(SIGMA)%*%y
+  n <- length(theta)
+  beta <- matrix(theta[3:n], nrow = 11, ncol = 1)
+  
+  sd_e <- sqrt(t(y - X %*% beta) %*% solve(SIGMA) %*% (y - X %*% beta) / (dim(X)[1] - dim(X)[2])) #p. 53 eqe. 3.40
+  
+  return(-sum(dnorm(y-X%*%beta, sd = as.vector(sd_e)*w.diag, log = T)))
+}
 
-# ForestPlots
-forestmodel::forest_model(fit2)
-forestmodel::forest_model(fit_obs1)
+theta.hat <- nlminb(start = c(1,1, rep(1,11)), objective = ml.function, y = y, X = X)
+theta.hat$par
+uncertainties <- sqrt(diag(solve(hessian(func = ml.function, x = theta.hat$par, y = y, X = X))))
+uncertainties
+#evt teste om der er stor forskel på sd_e nu sammenlignet med før.
+
+theta.hat$par/uncertainties
+
+w.diag <- rep(NA, dim(dioxin)[1])
+w.diag[X[,7] == 0] <- theta.hat$par[2]
+w.diag[X[,7] == 1] <- theta.hat$par[1]
+
+lm(logDiox ~ O2COR + NEFFEKT + PLANT + TIME + LAB + logHCL + CO2 + POVN +TROEG , data=dioxin, weights = w.diag)
+
