@@ -21,6 +21,7 @@ dioxin <- drop_na(dioxin, names(dioxin))
 # Log transform
 dioxin$logDiox <- log(dioxin$DIOX)
 dioxin$logCO <- log(dioxin$CO)
+dioxin$boxcoxCO <- Trans.eq1(-0.241, dioxin$logCO) #found through the boxcox script
 dioxin$logHCL <- log(dioxin$HCL)
 
 #Block effects: PLANT (3 plants, RENO_N, RENO_S and KARA), TIME (For RENO_N the experiment
