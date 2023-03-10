@@ -14,10 +14,6 @@ if (Sys.getenv('USER') == "mortenjohnsen"){
 
 source("DataPrep.R")
 
-# Trans.eq1 <- function(lambda, y = dioxin$DIOX){
-#   y_lambda <- ((y)^lambda - 1)/lambda#, lambda > 0
-#   return(y_lambda)
-# }
 lambda_NLL <- function(theta, y = dioxin$DIOX){
   lambda <- theta[1]
   y_lambda <- Trans.eq1(lambda, y)
@@ -59,11 +55,12 @@ lambda.hat + qt(c(alpha/2, 1-alpha/2), df = length(dioxin$DIOX) - 1) * sd_reg[1]
 dioxin$DIOX_boxcox <- Trans.eq1(lambda.hat, dioxin$DIOX)
 hist(dioxin$DIOX_boxcox, breaks = 5)
 
-# TODO Color code passive vs active, and measured vs. ordinal
+# Histogram of variables
 postscript("histograms_for_all.eps", horizontal = FALSE, onefile = FALSE, paper = "special",height = 10, width = 10)
 dioxin %>%
   dplyr::select(-PLANT, -LAB, -OXYGEN, -LOAD, -PRSEK, -OBSERV, -DIOX_boxcox, -logCO) %>%
   melt() %>%
+  # Color code passive vs active, and measured vs. ordinal
   mutate(color = c(rep("black", 52), 
                    rep("green", 52*4), 
                    rep("orange", 52*9), 
@@ -83,25 +80,10 @@ dev.off()
 # black = DIOX
 
 
-# TODO: Do this to the ones not in the plot
+# Take out tables of data that can't be plotted
 table(dioxin$PLANT)
 table(dioxin$LAB)
 table(dioxin$TIME)
-
-
-
-#Block effects: PLANT (3 plants, RENO_N, RENO_S and KARA), TIME (For RENO_N the experiment
-#was repeated at a later time point, 2, as well.), LAB (Two labs. One in DK and one in USE)
-#considerable measurement noise is expected.
-
-# Plot ordinal values versus the actually measured values
-#dioxin %>%
-#  dplyr::select(logDiox, OXYGEN_Ordinal
-#         , LOAD_Ordinal
-#         , PRSEK_Ordinal
-#         , O2, O2COR, NEFFEKT, QRAT) %>%
-#  ggpairs()
-
 
 
 # Make correlation plot of all variables:
@@ -175,6 +157,7 @@ summary(fit2)
 
 confint(fit2)
 
+# Check outliers
 cooksD  <- cooks.distance(fit2)
 cooksD[cooksD>(3*mean(cooksD))]
 influential <- dioxin[cooksD>(3*mean(cooksD)),]
@@ -186,7 +169,6 @@ plot(fit2,cex.lab=1.3, cex.axis=1.3, cex.main=2, cex.sub=2)
 dev.off()
 
 # Make figures that highlight the outliers
-
 # First with diox
 postscript("outliers_diox.eps", horizontal = FALSE, onefile = FALSE, paper = "special",height = 4, width = 13)
 plotData <- dioxin %>%
@@ -233,6 +215,7 @@ Anova(fit_obs1, type = "III") #type 3 anova
 
 summary(fit_obs1)
 
+# Check outliers
 cooksD  <- cooks.distance(fit_obs1)
 cooksD[cooksD>(3*mean(cooksD))]
 influential <- dioxin[cooksD>(3*mean(cooksD)),]
@@ -267,7 +250,8 @@ ggplot(plotData1, aes(x = value, y = logDiox)) +
 dev.off()
 
 
-#4)
+#### 4) ####
+# Make prediction
 predict(fit_obs1, newdata = data.frame("PLANT" = factor("RENO_N"), 
                                        "LAB" = factor("KK"),
                                        "TIME" = factor(1),
@@ -276,7 +260,7 @@ predict(fit_obs1, newdata = data.frame("PLANT" = factor("RENO_N"),
         interval = "prediction",
         level = 0.95)
 
-#5)
+#### 5) ####
 AIC(fit2)
 AIC(fit_obs1)
 #Operating conditions make a difference.
@@ -401,8 +385,6 @@ est.USA
 1/est.KK[2]
 1/est.USA[2]
 
-#skal anvende en likelihood function som tager theta = c(beta, psi), y, X som input
-#og returnerer sandsynligheden for at observere den givne y.
 y <- dioxin$logDiox
 RENO_N <- as.numeric(dioxin$PLANT == "RENO_N")
 RENO_S <- as.numeric(dioxin$PLANT == "RENO_S")
@@ -413,6 +395,7 @@ LAB_USA <- as.numeric(dioxin$LAB == "USA")
 X <- cbind(1, dioxin$O2COR, dioxin$NEFFEKT, RENO_N, RENO_S, TIME_2, LAB_USA, 
            dioxin$logHCL, dioxin$CO2)
 
+# Make function that re-estimate beta-parameters together with the weights.
 ml.function <- function(theta, y, X){
   wUSA <- theta[1]
   wKK <- theta[2]
@@ -425,9 +408,7 @@ ml.function <- function(theta, y, X){
   beta <- matrix(theta[3:n], nrow = 9, ncol = 1)
   
   sd_e <<- as.numeric(sqrt(t(y - X %*% beta) %*% solve(SIGMA) %*% (y - X %*% beta) / (dim(X)[1] - dim(X)[2]))) #p. 53 eqe. 3.40
-  #return(-sum(dnorm(y-X%*%beta, sd = as.vector(sd_e)*w.diag, log = T)))
   return(-sum(log(1/(sd_e*w.diag * sqrt(2*pi)) * exp(-1/2 * ((y-X%*%beta)/(sd_e*w.diag))^2))))
-  #return(-sum(mvtnorm::dmvnorm(x = t(y - X%*%beta), sigma = sd_e*SIGMA, log = T)))
 }
 
 theta.hat <- nlminb(start = c(1,1, rep(1,9)), objective = ml.function, y = y, X = X)
@@ -437,7 +418,6 @@ sd_e
 
 uncertainties <- sqrt(diag(solve(hessian(func = ml.function, x = theta.hat$par, y = y, X = X))))
 uncertainties
-#evt teste om der er stor forskel på sd_e nu sammenlignet med før.
 
 theta.hat$par/uncertainties
 t(t(2*pt(abs(theta.hat$par/uncertainties), df = 52 - 11, lower.tail = F)))
