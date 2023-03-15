@@ -3,6 +3,7 @@ library(ggplot2)
 library(tidyverse)
 
 # Load data ---------------------------------------------------------------
+setwd("~/Documents/Uni/TiendeSemester/Adv. data analysis and stat. modelling/02424---Assignments/Assignment 2")
 data <- read.table("10. semester/Advanced Dataanalysis and Statistical Modelling/Assignment 2/clothing.csv", 
                    header = TRUE, sep = ",")
 str(data)
