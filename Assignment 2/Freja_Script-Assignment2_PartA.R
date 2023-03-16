@@ -1,5 +1,11 @@
 rm(list=ls())
-setwd("~/Documents/Uni/TiendeSemester/Adv. data analysis and stat. modelling/02424---Assignments/Assignment 2")
+if (Sys.getenv('USER') == "mortenjohnsen"){
+  setwd("/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 2/")
+}else if (Sys.getenv('USER') == "freja"){
+  setwd("~/Documents/Uni/TiendeSemester/Adv. data analysis and stat. modelling/02424---Assignments/Assignment 2")
+}else{
+  setwd("C:/Users/catdu/OneDrive/DTU/10. semester/Advanced Dataanalysis and Statistical Modelling/Assignment 1/02424---Assignments/Assignment 2/")
+}
 library(data.table)
 library(ggplot2)
 library(GGally)
@@ -40,10 +46,49 @@ data$clo
 # with values between 0 and 1 (proportion of successful cases). Though, then I have to give
 # the total number of cases in weights (????)
 
-data$weight <- 10
+# It is wrong to set the number of trials to 100, because it is used to calculate p values.
+# I try it anyways:
+data$weight <- 100
 fit0 <- glm(clo ~ tOut + tInOp + sex + time + day, data = data, 
             family = binomial(link = "logit"), weights = data$weight)
+summary(fit0)
+# All parameters are significant, which I don't believe. 
 
+# When not specifying trials:
+fit1 <- glm(clo ~ tOut + tInOp + sex + time + day, data = data, 
+            family = binomial(link = "logit"))
+summary(fit1)
+# Not all parameters are significant, which is more reasonable
 
+# Remove 'day'
+fit2 <- glm(clo ~ tOut + tInOp + sex + time, data = data, 
+            family = binomial(link = "logit"))
+summary(fit2)
 
+# Remove 'tInOp'
+fit3 <- glm(clo ~ tOut + sex + time, data = data, 
+            family = binomial(link = "logit"))
+summary(fit3)
 
+# Remove 'time'
+fit4 <- glm(clo ~ tOut + sex, data = data, 
+            family = binomial(link = "logit"))
+summary(fit4)
+
+(pval <- 1 - pchisq(67.333,800))
+# Good
+
+par(mfrow=c(2,2))
+plot(fit4)
+# Residuals look good
+
+# Use betaregression
+library(betareg)
+betafit0 <- betareg(clo ~ tOut + tInOp + sex + time + day, data = data, link = "logit")
+summary(betafit0)
+
+# Remove day
+betafit1 <- betareg(clo ~ tOut + tInOp + sex + time, data = data, link = "logit")
+summary(betafit1)
+
+plot(betafit1)
