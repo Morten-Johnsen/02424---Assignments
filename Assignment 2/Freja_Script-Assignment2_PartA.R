@@ -9,6 +9,7 @@ if (Sys.getenv('USER') == "mortenjohnsen"){
 library(data.table)
 library(ggplot2)
 library(GGally)
+library(car)
 #load data
 data <- data.table(read.csv("clothing.csv",header=TRUE))
 
@@ -60,35 +61,78 @@ fit1 <- glm(clo ~ tOut + tInOp + sex + time + day, data = data,
 summary(fit1)
 # Not all parameters are significant, which is more reasonable
 
-# Remove 'day'
-fit2 <- glm(clo ~ tOut + tInOp + sex + time, data = data, 
-            family = binomial(link = "logit"))
-summary(fit2)
 
-# Remove 'tInOp'
-fit3 <- glm(clo ~ tOut + sex + time, data = data, 
-            family = binomial(link = "logit"))
-summary(fit3)
+predf1 <- predict(fit1,type="response")
+plot(data$clo)
+points(predf1, col='red')
+predf0 <- predict(fit0,type="response")
+plot(data$clo)
+points(predf0, col='red')
 
-# Remove 'time'
-fit4 <- glm(clo ~ tOut + sex, data = data, 
-            family = binomial(link = "logit"))
-summary(fit4)
-
-(pval <- 1 - pchisq(67.333,800))
-# Good
-
-par(mfrow=c(2,2))
-plot(fit4)
-# Residuals look good
 
 # Use betaregression
 library(betareg)
-betafit0 <- betareg(clo ~ tOut + tInOp + sex + time + day, data = data, link = "logit")
+betafit0 <- betareg(clo ~ tOut + tInOp + sex, data = data, link = "logit")
 summary(betafit0)
+plot(betafit0)
+res <- betafit0$residuals
+qqnorm(res)
+qqline(res)
 
-# Remove day
-betafit1 <- betareg(clo ~ tOut + tInOp + sex + time, data = data, link = "logit")
+# betafit0 seems good
+
+plot(data$tOut,res)
+plot(data$tIn,res)
+plot(factor(data$sex),res)
+
+betafitALL <- betareg(clo ~ tOut + tInOp + sex + I(tOut^2) + I(tInOp^2) + I(tOut*tInOp) + I(tOut^(-2)), data = data, link = "logit")
+summary(betafitALL)
+Anova(betafitALL,type = "III")
+
+betafit1 <- betareg(clo ~ tOut + tInOp + sex + I(tOut^2), data = data, link = "logit")
 summary(betafit1)
 
-plot(betafit1)
+
+betafit2 <- betareg(clo ~ tOut + tInOp + sex + I(tInOp^2) + I(tOut*tInOp), data = data, link = "logit")
+summary(betafit2)
+Anova(betafit2,type = "III")
+
+betafit3 <- betareg(clo ~ tOut + tInOp + sex + I(tInOp^2) , data = data, link = "logit")
+summary(betafit3)
+Anova(betafit3,type = "III")
+
+betafit4 <- betareg(clo ~ tOut + sex + I(tInOp^2) , data = data, link = "logit")
+summary(betafit4)
+Anova(betafit4,type = "III")
+par(mfrow=c(2,3))
+plot(betafit4)
+res <- betafit4$residuals
+qqnorm(res)
+qqline(res)
+
+# betafit4 seems good
+
+AIC(betafit4)
+AIC(betafit0)
+
+
+# Plot predictions
+pred4 <- predict(betafit4,type="response")
+
+data$clo
+par(mfrow=c(1,1))
+plot(data$clo)
+points(pred4, col='red')
+
+# Not overwhelming:((((
+
+max(pred4)
+
+pred0 <- predict(betafit0,type="response")
+
+data$clo
+par(mfrow=c(1,1))
+plot(data$clo)
+points(pred0, col='red')
+
+
