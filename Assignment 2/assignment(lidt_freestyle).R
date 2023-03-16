@@ -3,12 +3,21 @@ library(ggplot2)
 library(tidyverse)
 
 # Load data ---------------------------------------------------------------
-setwd("~/Documents/Uni/TiendeSemester/Adv. data analysis and stat. modelling/02424---Assignments/Assignment 2")
-data <- read.table("10. semester/Advanced Dataanalysis and Statistical Modelling/Assignment 2/clothing.csv", 
+if (Sys.getenv('USER') == "mortenjohnsen"){
+  setwd("/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 2/")
+}else if (Sys.getenv('USER') == "freja"){
+  setwd("~/Documents/Uni/TiendeSemester/Adv. data analysis and stat. modelling/02424---Assignments/Assignment 2")
+}else{
+  setwd("C:/Users/catdu/OneDrive/DTU/10. semester/Advanced Dataanalysis and Statistical Modelling/Assignment 1/02424---Assignments/Assignment 2/")
+}
+
+data <- read.table("clothing.csv", 
                    header = TRUE, sep = ",")
 str(data)
 data <- tibble(data)
 data$SEX <- ifelse(data$sex == "female", 1, 0) # Convert sex to binary
+data$resp <- cbind(data$clo*100, rep(100, length(data$clo))-data$clo*100)
+
 
 # Find sutiable GLM for clothing insulation level and compare the results
 # Should only concern the modelling of clothing insulation level based on
@@ -29,13 +38,16 @@ par(mfrow = c(1, 3))
 plot(clo ~ tOut, col="green", data=data1)
 plot(clo ~ tInOp, col="green", data=data1)
 plot(clo ~ sex, col="green", data=data1)
-
-
+# 
+# p = data$clo
+# logit <- log(p/(1-p))
+# plot(data$clo, logit, las=1,
+#      xlab='clo', ylab="Logit(clo)")
 
 # Models -------------------------------------------------------------------
 
 # All variables combined
-fit0 <- glm(formula = clo ~ tOut*tInOp*sex,
+fit0 <- glm(formula = resp ~ tOut*tInOp*sex,
             data = data1,
             family = binomial(link="logit"))
 summary(fit0) # None is significant
@@ -59,8 +71,7 @@ anova(fit0,fit2,test="Chisq")
 anova(fit0,fit3,test="Chisq")
 
 # We see that none of the anova tests are significant, meaning that we will take/Accept the simpler model(s)
-
-
+fit3 = fit0
 
 # Residuals ---------------------------------------------------------------
 
@@ -102,12 +113,14 @@ data2 <- data %>%
   select(-sex, -day, -time)
 data2$subjId <- as.factor(data2$subjId)
 
+par(mfrow = c(1, 1))
 plot(clo ~ subjId, col="green", data=data2)
 
 # Fit
 # All variables combined
-fit0 <- glm(formula = clo ~ tOut*tInOp*subjId,
+fit0 <- glm(formula = resp ~ tOut*tInOp*subjId, #clo
             data = data2,
+            # family = gaussian(link = inverse))
             family = binomial(link="logit"))
 summary(fit0) # None is significant
 drop1(fit0, test = "Chisq")
@@ -121,10 +134,11 @@ summary(fit2) # Somthing are significant now
 drop1(fit2, test = "Chisq")
 
 # fit2 is the same as a very simple additive model
-fit3 <- update(fit2,.~.-subjId-tInOp)
+fit3 <- update(fit2,.~.-subjId)#-tInOp)
 summary(fit3) # Somthing are significant now
 drop1(fit3, test = "Chisq")
 
 anova(fit0,fit1,test="Chisq")
 anova(fit0,fit2,test="Chisq")
 anova(fit0,fit3,test="Chisq")
+
