@@ -1,6 +1,7 @@
 ## Assignment 2 - part A
 library(ggplot2)
 library(tidyverse)
+library(car)
 
 # Load data ---------------------------------------------------------------
 if (Sys.getenv('USER') == "mortenjohnsen"){
@@ -45,6 +46,18 @@ plot(clo ~ sex, col="green", data=data1)
 #      xlab='clo', ylab="Logit(clo)")
 
 # Models -------------------------------------------------------------------
+
+# https://stats.stackexchange.com/questions/91724/what-is-quasi-binomial-distribution-in-the-context-of-glm
+# https://stats.stackexchange.com/questions/231017/what-is-the-difference-between-beta-regression-and-quasi-glm-with-variance-m
+fit0.1 <- glm(formula = clo ~ tOut*tInOp*sex, 
+              family = quasi(link = "logit", 
+                             variance = "mu(1-mu)"), 
+              data = data1)
+summary(fit0.1)
+Anova(fit0.1, type = "III")
+# All seem significant...
+# Since AIC is not defined for quasi-models - visualization should be used instead
+
 
 # All variables combined
 fit0 <- glm(formula = resp ~ tOut*tInOp*sex,
@@ -104,6 +117,36 @@ plot(fit3)
 cooksD  <- cooks.distance(fit3)
 cooksD[cooksD>(3*mean(cooksD))]
 influential <- data1[cooksD>(3*mean(cooksD)),]
+
+
+
+
+# Quasi -------------------------------------------------------------------
+
+# Extract the difference between the predicted and actual values
+resDev <- residuals(fit0.1, type="deviance")
+resDevPear <- residuals(fit0.1, type = "pearson")
+
+# Residual analysis of the variation in cloting insulation level between females and men.
+par(mfrow = c(1, 1))
+plot(jitter(as.numeric(as.factor(data$sex)), amount=0.1), resDev,
+     xlab="Sex", ylab="Deviance residuals", cex=0.6,
+     axes=FALSE)
+box()
+axis(1,label=c("Female", "Male" ),at=c(1,2))
+axis(2)
+# The deviance is quite distributed evenly for the sex, but we do see a larger variance for females
+
+confint(fit3)
+
+par(mfrow = c(1, 3))
+plot(data1$clo, resDev, xlab='Clothing insulation level', ylab='Deviance residuals')
+plot(data1$tOut, resDev, xlab='Temperature outdoot', ylab='Deviance residuals')
+plot(data1$tInOp, resDev, xlab='Operating temperature indoor', ylab='Deviance residuals')
+# We do see that the residuals for 'clo' is linear distributed. We want more randomness...
+
+par(mfrow = c(2, 2))
+plot(fit0.1)
 
 
 
