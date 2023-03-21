@@ -4,6 +4,7 @@ library(corrplot)
 library(car)
 library(reshape)
 library(tidyverse)
+library(magrittr)
 library(dplyr)
 library(betareg)
 library(statmod)
@@ -108,8 +109,65 @@ pacf(c.data$pearson)
 plot_summs(fit.gamma)
 
 #### 4) Fitting the model using subjId instead of sex
-c.data2 <- dplyr::select(clothing, -sex, -day, -time, -X)
-fit.gamma2 <- glm()
+c.data2 <- dplyr::select(clothing, -sex, -X)
+c.data2 %<>% 
+  mutate(subjId = factor(subjId))
+fit.gamma2 <- glm(clo ~ tOut + tInOp + subjId, data = c.data2, family = Gamma(link = "cloglog"))
+anova(fit.gamma2, test = "Chisq")
+#subject id is highly significant -> normally this would be an indicator to use a mixed model instead.
+#the residual deviance for this model is a lot lower than for the sex-based model above.
+c.data2$pearson <- residuals(fit.gamma2, type = "pearson")
+
+ggplot(c.data2)+
+  geom_boxplot(aes(x = subjId, y = pearson))+
+  theme_bw()
+#still not constant variance.
+
+par(mfrow=c(2,2))
+plot(fit.gamma2)
+
+#### 5) within day autocorrelation
+acf(residuals(fit.gamma2))
+pacf(residuals(fit.gamma2))
+par(mfrow=c(1,1))
+#still seeing autocorrelation
+c.data2 %>%
+  group_by(subjId, day, time) %>%
+  arrange(subjId, day, time) %>%
+  summarise(autocor = acf(pearson, plot = F)$acf) -> test
+
+hist(test$autocor)
+
+ggplot(c.data2)+
+  geom_point(aes(x = subjId, y = pearson, fill = day))
+
+acf <- c()
+lag <- c()
+subject <- c()
+
+for (i in unique(c.data2$subjId)){
+  c.data2 %>%
+    filter(subjId == i) -> tmp
+  for (j in unique(tmp$day)){
+    tmp %>%
+      filter(day == j) %>%
+      arrange(time) %>%
+      select(pearson) %>%
+      acf(plot = F) -> acf.tmp
+    acf <- c(acf, acf.tmp$acf)
+    lag <- c(lag, 0:(length(acf.tmp$acf)-1))
+    subject <- c(subject, rep(i, length(acf.tmp$acf)))
+  }
+}
+
+ggplot(data.frame("acf" = acf, "lag" = lag, "subject" = subject))+
+  geom_col(aes(x = lag, y = acf, fill = subject), position = "dodge")+
+  theme_bw()+
+  theme(legend.position = "none")+
+  scale_fill_manual(values = rep("black",length(unique(subject))))+
+  geom_hline(aes(yintercept = qnorm(1-0.05/2)/sqrt(dim(c.data2)[1]), colour = "95% significance level"), linetype = "dashed", colour = "royalblue1", size = 0.8)+
+  geom_hline(aes(yintercept = -qnorm(1-0.05/2)/sqrt(dim(c.data2)[1])), linetype = "dashed", colour = "royalblue1", size = 0.8)+
+  scale_x_continuous(n.breaks = 6)
 
 #### Earinfections ####
 #1)
