@@ -109,7 +109,7 @@ pacf(c.data$pearson)
 plot_summs(fit.gamma)
 
 #### 4) Fitting the model using subjId instead of sex
-c.data2 <- dplyr::select(clothing, -sex, -X)
+c.data2 <- dplyr::select(clothing, -X)
 c.data2 %<>% 
   mutate(subjId = factor(subjId))
 fit.gamma2 <- glm(clo ~ tOut + tInOp + subjId, data = c.data2, family = Gamma(link = "cloglog"))
@@ -168,6 +168,52 @@ ggplot(data.frame("acf" = acf, "lag" = lag, "subject" = subject))+
   geom_hline(aes(yintercept = qnorm(1-0.05/2)/sqrt(dim(c.data2)[1]), colour = "95% significance level"), linetype = "dashed", colour = "royalblue1", size = 0.8)+
   geom_hline(aes(yintercept = -qnorm(1-0.05/2)/sqrt(dim(c.data2)[1])), linetype = "dashed", colour = "royalblue1", size = 0.8)+
   scale_x_continuous(n.breaks = 6)
+
+#6) Optimal weight/dispersion parameter
+glm.gamma.w <- function(theta){
+  y <- c.data2$clo
+  w.male <- theta[5]
+  w.female <- theta[6]
+  w <- numeric(dim(c.data2)[1])
+  w[c.data2$sex == "male"] <- w.male
+  w[c.data2$sex == "female"] <- w.female
+  
+  eta <- theta[1] + theta[2] * c.data2$tOut + theta[3] * c.data2$tInOp + theta[4] * as.numeric(c.data2$sex == "male")
+  mu <- 1-exp(-exp(eta))
+  
+  d <- 2*(y/mu - log(y/mu) - 1)
+  return(1/2 * sum(w*d))
+}
+
+manual.fit <- nlminb(start = c(0,0,0,0,1,1), objective = glm.gamma.w)
+manual.fit$par
+
+#7) Profile likelihood
+glm.gamma.w.pf <- function(w1,w2){
+  y <- c.data2$clo
+  w.male <- w1
+  w.female <- w2
+  w <- numeric(dim(c.data2)[1])
+  w[c.data2$sex == "male"] <- w.male
+  w[c.data2$sex == "female"] <- w.female
+  tmp.func <- function(theta){
+    eta <- theta[1] + theta[2] * c.data2$tOut + theta[3] * c.data2$tInOp + theta[4] * as.numeric(c.data2$sex == "male")
+    mu <- 1-exp(-exp(eta))
+    
+    w <- w*mu^2
+    d <- 2*(y/mu - log(y/mu) - 1)
+    return(1/2 * sum(w*d))
+  }
+  
+  fit.tmp <- nlminb(start = c(0,0,0,0), objective = tmp.func)
+  return(fit.tmp$objective)
+}
+
+w1 <- seq(-5, -1, length.out = 100)
+w2 <- seq(-12, -8, length.out = 100)
+z <- outer(w1, w2, FUN = Vectorize(function(w1,w2) glm.gamma.w.pf(w1,w2)))
+
+contour(w1, w2, z)
 
 #### Earinfections ####
 #1)
