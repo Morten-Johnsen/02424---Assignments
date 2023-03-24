@@ -32,7 +32,7 @@ melt(c.data) %>%
   scale_fill_manual(values = c("blue", "orange"))+
   facet_wrap(~variable, scales = "free")+
   theme_bw()
-
+ggsave("/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 2/clothing_data_histograms.png", width = 30, height = 10, units = "cm")
 #### 1) Distributions
 beta.dist <- function(theta){
   return(-sum(dbeta(c.data$clo, shape1 = theta[1], shape2 = theta[2], log = T)))
@@ -76,18 +76,74 @@ ggplot(c.data)+
                                                                         paste0("Inv Gauss [AIC: ",round(2*invgaus.hat$objective + 2*length(invgaus.hat$par),3),"]"),
                                                                         paste0("Log-normal [AIC: ",round(2*lnorm.hat$objective + 2*length(lnorm.hat$par),3),"]")))+
   ggtitle("Clothing insulation level")
-
+ggsave("/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 2/distribution_choice_1.png", width = 20, height = 10, units = "cm")
 #gamma is best (HUSK clo må gerne være > 1, det er ikke en fraktion).
 fit.gamma <- glm(clo ~ tOut + tInOp + sex, data = c.data, family = Gamma(link = "cloglog"))
+add1(object = fit.gamma, scope = ~.+tOut:sex+tInOp:sex+tOut:tInOp, test = "Chisq")
+fit.gamma <- update(fit.gamma, .~.+tOut:sex)
+add1(object = fit.gamma, scope = ~.+tInOp:sex+tOut:tInOp, test = "Chisq")
+drop1(object = fit.gamma, test = "Chisq")
+fit.gamma <- update(fit.gamma, .~.-tInOp)
+anova(fit.gamma, test = "Chisq")
 #goodness of fit:
 pchisq(deviance(fit.gamma), df = dim(c.data)[1] - length(coefficients(fit.gamma)), lower.tail = F)
 #er passende
 summary(fit.gamma)
 
+#Manuelt
+glm.gamma.w <- function(theta){
+  y <- c.data$clo
+  w.male <- 1#theta[5]
+  w.female <- 1#theta[6]
+  w <- numeric(dim(c.data)[1])
+  w[c.data$sex == "male"] <- w.male
+  w[c.data$sex == "female"] <- w.female
+  
+  eta <- theta[1] + theta[2] * c.data$tOut + theta[3] * as.numeric(c.data$sex == "male") + theta[4] * as.numeric(c.data$sex == "male") * c.data$tOut
+  mu <- 1-exp(-exp(eta))
+  
+  d <- 2*(y/mu - log(y/mu) - 1)
+  return(1/2 * sum(w*d))
+}
+
+manual.fit <- nlminb(start = c(0,0,0,0), objective = glm.gamma.w)
+manual.fit$par
+
+glm.gamma.w2 <- function(theta){
+  y <- c.data$clo
+  w.male <- theta[5]
+  w.female <- theta[6]
+  w <- numeric(dim(c.data)[1])
+  w[c.data$sex == "male"] <- w.male
+  w[c.data$sex == "female"] <- w.female #shape
+  
+  N <- dim(c.data)[1]
+  
+  eta <- theta[1] + theta[2] * c.data$tOut + theta[3] * as.numeric(c.data$sex == "male") + theta[4] * as.numeric(c.data$sex == "male") * c.data$tOut
+  mu <- 1-exp(-exp(eta))
+  
+  nll <- -sum(dgamma(y, shape = w, scale = mu/w, log = T))
+  return(nll)
+}
+
+manual.fit2 <- nlminb(start = c(0,0,0,0,1,1), objective = glm.gamma.w2)
+manual.fit2$par
+
+#variance:
+theta.hat <- manual.fit2$par
+#male
+var.male <- theta.hat[5] * ((theta.hat[1] + theta.hat[2] * c.data$tOut[c.data$sex == "male"] + theta.hat[3] * as.numeric(c.data$sex == "male")[c.data$sex == "male"] + theta.hat[4] * as.numeric(c.data$sex == "male")[c.data$sex == "male"] * c.data$tOut[c.data$sex == "male"])/theta.hat[5])^2
+mean(var.male)
+#female
+var.female <- theta.hat[6] * ((theta.hat[1] + theta.hat[2] * c.data$tOut[c.data$sex == "female"] + theta.hat[3] * as.numeric(c.data$sex == "female")[c.data$sex == "female"] + theta.hat[4] * as.numeric(c.data$sex == "female")[c.data$sex == "female"] * c.data$tOut[c.data$sex == "female"])/theta.hat[6])^2
+mean(var.female)
+#Higher variance for the women.
 
 #### 2) residual analysis
 par(mfrow=c(2,2))
-plot(fit.gamma)
+#png(filename = "/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 2/residual_analysis_1.png", width = 20, height = 10, units = "cm", res = 1000)
+plot(fit.gamma, pch = 16)
+#dev.off()
 
 #gender-specific residual analysis
 c.data$pred <- predict(fit.gamma)
@@ -98,11 +154,15 @@ ggplot(c.data)+
   geom_boxplot(aes(x = sex, y = pearson, fill = sex))+
   theme_bw()+
   ggtitle("Residual variation difference between genders")
+ggsave(filename = "/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 2/gender_variance.png", width = 20, height = 10, units = "cm")
 #=> Residuals are not identically distributed. This will be addressed later.
 
 par(mfrow=c(1,2))
-acf(c.data$pearson)
-pacf(c.data$pearson)
+p1 <- acf(c.data$pearson, main = "ACF pearson residuals")
+p2 <- pacf(c.data$pearson, main = "PACF pearson residuals")
+png("/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 2/acf_pacf1.png", width = 20, height = 10, units = "cm", res = 100)
+
+dev.off()
 #=> residuals are not independent.
 
 #### 3) Model interpretation
@@ -114,21 +174,50 @@ c.data2 %<>%
   mutate(subjId = factor(subjId))
 fit.gamma2 <- glm(clo ~ tOut + tInOp + subjId, data = c.data2, family = Gamma(link = "cloglog"))
 anova(fit.gamma2, test = "Chisq")
+Anova(fit.gamma2, type = "III")
+add1(object = fit.gamma2, scope = ~.+I(tOut^2)+I(tInOp^2)+tOut:tInOp+tOut:subjId+tInOp:subjId, test = "Chisq")
+fit.gamma2 <- update(fit.gamma2, .~.+tOut:subjId)
+Anova(fit.gamma2, type = "III")
+anova(fit.gamma2, test = "Chisq")
+#type III anova show that tOut is now no longer significant.
+fit.gamma2 <- update(fit.gamma2, .~.-tOut)
+Anova(fit.gamma2, type = "III")
+# now all terms are significant and we see if additional terms should be added
+add1(object = fit.gamma2, scope = ~.+I(tOut^2)+I(tInOp^2)+tOut:tInOp+tInOp:subjId, test = "Chisq")
+fit.gamma2 <- update(fit.gamma2, .~.+tInOp:subjId)
+Anova(fit.gamma2, type = "III")
+#type III anova show that tInOp is now no longer significant.
+fit.gamma2 <- update(fit.gamma2, .~.-tInOp)
+Anova(fit.gamma2, type = "III")
+#all terms are now significant, see if we can add more information
+add1(object = fit.gamma2, scope = ~.+I(tOut^2)+I(tInOp^2)+tOut:tInOp+tOut:tInOp:subjId, test = "Chisq")
+fit.gamma2 <- update(fit.gamma2, .~.+I(tInOp^2))
+Anova(fit.gamma2, type = "III")
+add1(object = fit.gamma2, scope = ~.+I(tOut^2)+I(tInOp^2)+tOut:tInOp+tOut:tInOp:subjId, test = "Chisq")
+drop1(object = fit.gamma2, test = "Chisq")
+#all terms are significant, no further terms can be added or removed.
+
 #subject id is highly significant -> normally this would be an indicator to use a mixed model instead.
 #the residual deviance for this model is a lot lower than for the sex-based model above.
+
+#### 5) Residual analysis including within day autocorrelation
 c.data2$pearson <- residuals(fit.gamma2, type = "pearson")
 
 ggplot(c.data2)+
   geom_boxplot(aes(x = subjId, y = pearson))+
   theme_bw()
-#still not constant variance.
+#still not constant residual variance as variations can be seen based on the subjId
 
 par(mfrow=c(2,2))
 plot(fit.gamma2)
+#again the residuals are fairly well-behaved as compared to the predicted values
+#showing a few outliers, but all residuals are within cooks distance.
+#the qqplot show poor normality. Even when accounting for 95% CIs.
+qqPlot(residuals(fit.gamma2))
 
-#### 5) within day autocorrelation
-acf(residuals(fit.gamma2))
-pacf(residuals(fit.gamma2))
+#looking at the within day autocorrelation to examine independency.
+acf(residuals(fit.gamma2, type = "pearson"))
+pacf(residuals(fit.gamma2, type = "pearson"))
 par(mfrow=c(1,1))
 #still seeing autocorrelation
 c.data2 %>%
