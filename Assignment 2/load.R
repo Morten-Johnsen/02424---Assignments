@@ -109,36 +109,6 @@ glm.gamma.w <- function(theta){
 manual.fit <- nlminb(start = c(0,0,0,0), objective = glm.gamma.w)
 manual.fit$par
 
-glm.gamma.w2 <- function(theta){
-  y <- c.data$clo
-  w.male <- theta[5]
-  w.female <- theta[6]
-  w <- numeric(dim(c.data)[1])
-  w[c.data$sex == "male"] <- w.male
-  w[c.data$sex == "female"] <- w.female #shape
-  
-  N <- dim(c.data)[1]
-  
-  eta <- theta[1] + theta[2] * c.data$tOut + theta[3] * as.numeric(c.data$sex == "male") + theta[4] * as.numeric(c.data$sex == "male") * c.data$tOut
-  mu <- 1-exp(-exp(eta))
-  
-  nll <- -sum(dgamma(y, shape = w, scale = mu/w, log = T))
-  return(nll)
-}
-
-manual.fit2 <- nlminb(start = c(0,0,0,0,1,1), objective = glm.gamma.w2)
-manual.fit2$par
-
-#variance:
-theta.hat <- manual.fit2$par
-#male
-var.male <- theta.hat[5] * ((theta.hat[1] + theta.hat[2] * c.data$tOut[c.data$sex == "male"] + theta.hat[3] * as.numeric(c.data$sex == "male")[c.data$sex == "male"] + theta.hat[4] * as.numeric(c.data$sex == "male")[c.data$sex == "male"] * c.data$tOut[c.data$sex == "male"])/theta.hat[5])^2
-mean(var.male)
-#female
-var.female <- theta.hat[6] * ((theta.hat[1] + theta.hat[2] * c.data$tOut[c.data$sex == "female"] + theta.hat[3] * as.numeric(c.data$sex == "female")[c.data$sex == "female"] + theta.hat[4] * as.numeric(c.data$sex == "female")[c.data$sex == "female"] * c.data$tOut[c.data$sex == "female"])/theta.hat[6])^2
-mean(var.female)
-#Higher variance for the women.
-
 #### 2) residual analysis
 par(mfrow=c(2,2))
 #png(filename = "/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 2/residual_analysis_1.png", width = 20, height = 10, units = "cm", res = 1000)
@@ -219,17 +189,7 @@ qqPlot(residuals(fit.gamma2))
 acf(residuals(fit.gamma2, type = "pearson"))
 pacf(residuals(fit.gamma2, type = "pearson"))
 par(mfrow=c(1,1))
-#still seeing autocorrelation
-c.data2 %>%
-  group_by(subjId, day, time) %>%
-  arrange(subjId, day, time) %>%
-  summarise(autocor = acf(pearson, plot = F)$acf) -> test
-
-hist(test$autocor)
-
-ggplot(c.data2)+
-  geom_point(aes(x = subjId, y = pearson, fill = day))
-
+#still seeing overall autocorrelation
 acf <- c()
 lag <- c()
 subject <- c()
@@ -249,33 +209,59 @@ for (i in unique(c.data2$subjId)){
   }
 }
 
-ggplot(data.frame("acf" = acf, "lag" = lag, "subject" = subject))+
-  geom_col(aes(x = lag, y = acf, fill = subject), position = "dodge")+
+acf.data <- data.frame("acf" = acf, "lag" = lag, "subject" = subject)
+mean.acf.data <- acf.data %>%
+  group_by(lag) %>%
+  summarise(lag_avg = mean(acf))
+mean.acf.data
+
+ggplot(acf.data)+
+  geom_col(aes(x = lag, y = acf, fill = subject), position = "dodge", show.legend = F)+
   theme_bw()+
-  theme(legend.position = "none")+
-  scale_fill_manual(values = rep("black",length(unique(subject))))+
-  geom_hline(aes(yintercept = qnorm(1-0.05/2)/sqrt(dim(c.data2)[1]), colour = "95% significance level"), linetype = "dashed", colour = "royalblue1", size = 0.8)+
-  geom_hline(aes(yintercept = -qnorm(1-0.05/2)/sqrt(dim(c.data2)[1])), linetype = "dashed", colour = "royalblue1", size = 0.8)+
-  scale_x_continuous(n.breaks = 6)
+  scale_fill_manual(values = rep("grey",length(unique(subject))))+
+  geom_hline(aes(yintercept = qnorm(1-0.05/2)/sqrt(dim(c.data2)[1]), colour = "95% significance level"), linetype = "dashed", colour = "royalblue1", linewidth = 0.8)+
+  geom_hline(aes(yintercept = -qnorm(1-0.05/2)/sqrt(dim(c.data2)[1])), linetype = "dashed", colour = "royalblue1", linewidth = 0.8)+
+  geom_segment(data = mean.acf.data, aes(x = lag-0.5, xend = lag+0.5, y = lag_avg, yend = lag_avg, colour = "Average"))+
+  scale_x_continuous(n.breaks = 6)+
+  labs(colour = "")+
+  scale_colour_manual(values = c("black"))+
+  theme(legend.position = "top")+
+  ggtitle("Within day autocorrelation for each subject")
 
 #6) Optimal weight/dispersion parameter
-glm.gamma.w <- function(theta){
-  y <- c.data2$clo
+glm.gamma.w2 <- function(theta){
+  y <- c.data$clo
   w.male <- theta[5]
   w.female <- theta[6]
-  w <- numeric(dim(c.data2)[1])
-  w[c.data2$sex == "male"] <- w.male
-  w[c.data2$sex == "female"] <- w.female
+  w <- numeric(dim(c.data)[1])
+  w[c.data$sex == "male"] <- w.male
+  w[c.data$sex == "female"] <- w.female #shape
   
-  eta <- theta[1] + theta[2] * c.data2$tOut + theta[3] * c.data2$tInOp + theta[4] * as.numeric(c.data2$sex == "male")
+  N <- dim(c.data)[1]
+  
+  eta <- theta[1] + theta[2] * c.data$tOut + theta[3] * as.numeric(c.data$sex == "male") + theta[4] * as.numeric(c.data$sex == "male") * c.data$tOut
   mu <- 1-exp(-exp(eta))
   
-  d <- 2*(y/mu - log(y/mu) - 1)
-  return(1/2 * sum(w*d))
+  nll <- -sum(dgamma(y, shape = w, scale = mu/w, log = T))
+  return(nll)
 }
 
-manual.fit <- nlminb(start = c(0,0,0,0,1,1), objective = glm.gamma.w)
-manual.fit$par
+manual.fit2 <- nlminb(start = c(0,0,0,0,1,1), objective = glm.gamma.w2)
+manual.fit2$par
+
+#looking at the variance associated with each gender based on the weight:
+theta.hat <- manual.fit2$par
+#for the gamma distribution we get: var = shape*scale^2 = k*theta^2
+#with our parametrization: scale = mu/shape = mu/k
+#Thus: var = shape * mu^2/shape^2 = mu^2/shape = mu^2/k
+#(our weight w is actually an estimate of the shape/dispersion parameter k) and thus:
+##male
+var.male <- (theta.hat[1] + theta.hat[2] * c.data$tOut[c.data$sex == "male"] + theta.hat[3] * as.numeric(c.data$sex == "male")[c.data$sex == "male"] + theta.hat[4] * as.numeric(c.data$sex == "male")[c.data$sex == "male"] * c.data$tOut[c.data$sex == "male"])^2/theta.hat[5]
+mean(var.male)
+##female
+var.female <- (theta.hat[1] + theta.hat[2] * c.data$tOut[c.data$sex == "female"] + theta.hat[3] * as.numeric(c.data$sex == "female")[c.data$sex == "female"] + theta.hat[4] * as.numeric(c.data$sex == "female")[c.data$sex == "female"] * c.data$tOut[c.data$sex == "female"])^2/theta.hat[6]
+mean(var.female)
+#Higher variance for the women as expected
 
 #7) Profile likelihood
 glm.gamma.w.pf <- function(w1,w2){
