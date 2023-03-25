@@ -9,6 +9,7 @@ library(dplyr)
 library(betareg)
 library(statmod)
 library(jtools)
+library(broom.mixed)
 
 if (Sys.getenv('USER') == "mortenjohnsen"){
   setwd("/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/")
@@ -89,6 +90,7 @@ anova(fit.gamma, test = "Chisq")
 pchisq(deviance(fit.gamma), df = dim(c.data)[1] - length(coefficients(fit.gamma)), lower.tail = F)
 #er passende
 summary(fit.gamma)
+confint(fit.gamma)
 
 #Manuelt
 glm.gamma.w <- function(theta){
@@ -111,9 +113,10 @@ manual.fit$par
 
 #### 2) residual analysis
 par(mfrow=c(2,2))
+postscript(file.path(getwd(), "fit.gamma.eps"), horizontal = FALSE, onefile = FALSE, paper = "special",height = 10, width = 10)
 #png(filename = "/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 2/residual_analysis_1.png", width = 20, height = 10, units = "cm", res = 1000)
 plot(fit.gamma, pch = 16)
-#dev.off()
+dev.off()
 
 #gender-specific residual analysis
 c.data$pred <- predict(fit.gamma)
@@ -349,3 +352,62 @@ ggplot(earinfect, aes(x = as.numeric(location)))+
   theme_bw()+
   scale_x_continuous(breaks = c(1,2), labels = c("beach", "non beach"))+
   ggtitle("Logistic regression model")
+
+
+
+# Poisson family + added 'offset(log(persons))' ----------------------------------
+# See page 123 in book
+
+fit.pois <- glm(infections ~ offset(log(persons)) + age * sex * location * swimmer, data = earinfect, family = poisson)
+fit.pois.full <- fit.pois
+drop1(fit.pois)
+fit.pois <- update(fit.pois, .~.-age:sex:location:swimmer)
+anova(fit.pois, test = "Chisq")
+drop1(fit.pois)
+fit.pois <- update(fit.pois, .~.-age:sex:location)
+anova(fit.pois, test = "Chisq")
+drop1(fit.pois)
+fit.pois <- update(fit.pois, .~.-age:location:swimmer)
+anova(fit.pois, test = "Chisq")
+drop1(fit.pois)
+fit.pois <- update(fit.pois, .~.-age:sex:swimmer)
+anova(fit.pois, test = "Chisq")
+drop1(fit.pois)
+fit.pois <- update(fit.pois, .~.-sex:location:swimmer)
+anova(fit.pois, test = "Chisq")
+drop1(fit.pois)
+fit.pois <- update(fit.pois, .~.-sex:location)
+Anova(fit.pois, type = "III", test = "LR")
+anova(fit.pois, test = "Chisq")
+drop1(fit.pois)
+fit.pois <- update(fit.pois, .~.-age:location)
+anova(fit.pois, test = "Chisq")
+drop1(fit.pois)
+fit.pois <- update(fit.pois, .~.-age:sex)
+anova(fit.pois, test = "Chisq")
+drop1(fit.pois)
+fit.pois <- update(fit.pois, .~.-sex:swimmer)
+anova(fit.pois, test = "Chisq")
+drop1(fit.pois)
+fit.pois <- update(fit.pois, .~.-age:swimmer)
+anova(fit.pois, test = "Chisq")
+drop1(fit.pois)
+fit.pois <- update(fit.pois, .~.-location:swimmer)
+anova(fit.pois, test = "Chisq")
+drop1(fit.pois)
+fit.pois.final <- fit.pois
+
+summary(fit.pois)
+
+anova(fit.pois.full, fit.pois.final, test = "Chisq")
+# We accept the reduced model because of the high p-value.
+
+# Manual check
+beta <- coefficients(fit.pois.final)
+beta[is.na(beta)] <- 0
+eta <- as.numeric(fit.pois.final$coefficients %*% beta + log(earinfect$infections))
+all.equal(eta, predict(fit.pois.final))
+# Soo not quite cool/good...
+
+par(mfrow = c(2, 2))
+plot(fit.pois.final)
