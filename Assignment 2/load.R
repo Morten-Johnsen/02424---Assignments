@@ -411,3 +411,14 @@ all.equal(eta, predict(fit.pois.final))
 
 par(mfrow = c(2, 2))
 plot(fit.pois.final)
+
+1 - pchisq(fit.pois.final$deviance, df = fit.pois.final$df.residual, lower.tail = F) #model is highly appropriate
+
+par(mfrow=c(1,2))
+acf(residuals(fit.pois.final, type = "pearson"))
+pacf(residuals(fit.pois.final, type = "pearson"))
+
+# Log-distribution of persons
+earinfect$logPersons <- log(earinfect$persons)
+ggpairs(earinfect)
+
