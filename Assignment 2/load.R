@@ -12,6 +12,7 @@ library(statmod)
 library(jtools)
 library(numDeriv)
 library(latex2exp)
+library(broom.mixed)
 
 if (Sys.getenv('USER') == "mortenjohnsen"){
   setwd("/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/")
@@ -94,6 +95,7 @@ Anova(fit.gamma, type = "III", test = "LR")
 pchisq(deviance(fit.gamma), df = dim(c.data)[1] - length(coefficients(fit.gamma)), lower.tail = F)
 #er passende
 summary(fit.gamma)
+confint(fit.gamma)
 
 #Manuelt
 glm.gamma.w <- function(theta){
@@ -124,11 +126,14 @@ summary(fit.gamma)
 
 #### 2) residual analysis
 par(mfrow=c(2,2))
+postscript(file.path(getwd(), "fit.gamma.eps"), horizontal = FALSE, onefile = FALSE, paper = "special",height = 10, width = 10)
 #png(filename = "/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 2/residual_analysis_1.png", width = 20, height = 10, units = "cm", res = 1000)
 plot(fit.gamma, pch = 16)
 #dev.off()
 c.data$residuals <- fit.gamma$residuals
 c.data$leverage <- hatvalues(fit.gamma)
+#dev.off()
+
 #gender-specific residual analysis
 c.data$pred <- predict(fit.gamma)
 c.data$pearson <- residuals(fit.gamma, type = "pearson")
@@ -469,3 +474,206 @@ ggplot(earinfect, aes(x = as.numeric(location)))+
   theme_bw()+
   scale_x_continuous(breaks = c(1,2), labels = c("beach", "non beach"))+
   ggtitle("Logistic regression model")
+
+
+
+# Poisson family + added 'offset(log(persons))' ----------------------------------
+# See page 123 in book
+
+fit.pois <- glm(infections ~ offset(log(persons)) + age * sex * location * swimmer, data = earinfect, family = poisson)
+fit.pois.full <- fit.pois
+drop1(fit.pois)
+fit.pois <- update(fit.pois, .~.-age:sex:location:swimmer)
+anova(fit.pois, test = "Chisq")
+drop1(fit.pois)
+fit.pois <- update(fit.pois, .~.-age:sex:location)
+anova(fit.pois, test = "Chisq")
+drop1(fit.pois)
+fit.pois <- update(fit.pois, .~.-age:location:swimmer)
+anova(fit.pois, test = "Chisq")
+drop1(fit.pois)
+fit.pois <- update(fit.pois, .~.-age:sex:swimmer)
+anova(fit.pois, test = "Chisq")
+drop1(fit.pois)
+fit.pois <- update(fit.pois, .~.-sex:location:swimmer)
+anova(fit.pois, test = "Chisq")
+drop1(fit.pois)
+fit.pois <- update(fit.pois, .~.-sex:location)
+Anova(fit.pois, type = "III", test = "LR")
+anova(fit.pois, test = "Chisq")
+drop1(fit.pois)
+fit.pois <- update(fit.pois, .~.-age:location)
+anova(fit.pois, test = "Chisq")
+drop1(fit.pois)
+fit.pois <- update(fit.pois, .~.-age:sex)
+anova(fit.pois, test = "Chisq")
+drop1(fit.pois)
+fit.pois <- update(fit.pois, .~.-sex:swimmer)
+anova(fit.pois, test = "Chisq")
+drop1(fit.pois)
+fit.pois <- update(fit.pois, .~.-age:swimmer)
+anova(fit.pois, test = "Chisq")
+drop1(fit.pois)
+fit.pois <- update(fit.pois, .~.-location:swimmer)
+anova(fit.pois, test = "Chisq")
+drop1(fit.pois)
+fit.pois.final <- fit.pois
+
+summary(fit.pois)
+
+anova(fit.pois.full, fit.pois.final, test = "Chisq")
+# We accept the reduced model because of the high p-value.
+
+# Manual check
+beta <- coefficients(fit.pois.final)
+beta[is.na(beta)] <- 0
+eta <- as.numeric(fit.pois.final$coefficients %*% beta + log(earinfect$infections))
+all.equal(eta, predict(fit.pois.final))
+# Soo not quite cool/good...
+
+par(mfrow = c(2, 2))
+plot(fit.pois.final)
+
+1 - pchisq(fit.pois.final$deviance, df = fit.pois.final$df.residual, lower.tail = F) #model is highly appropriate
+
+par(mfrow=c(1,2))
+acf(residuals(fit.pois.final, type = "pearson"))
+pacf(residuals(fit.pois.final, type = "pearson"))
+
+# Log-distribution of persons
+earinfect$logPersons <- log(earinfect$persons)
+earinfect$loginfections <- log(earinfect$infections)
+ggpairs(earinfect)
+
+
+#### 1) Distributions
+pois.dist <- function(theta){
+  return(-sum(dpois(earinfect$infections, lambda = theta, log = T)))
+}
+
+norm.dist <- function(theta){
+  return(-sum(dnorm(earinfect$infections, mean = theta[1], sd = theta[2], log = T)))
+}
+
+gamma.dist <- function(theta){
+  return(-sum(dgamma(earinfect$infections, shape = theta[1], rate = theta[2], log = T)))
+}
+
+lnorm.dist <- function(theta){
+  return(-sum(dlnorm(x=earinfect$infections, meanlog = theta[1], sdlog = theta[2], log = T)))
+}
+
+pois.hat <- nlminb(start = c(1), objective = pois.dist)
+norm.hat <- nlminb(start = c(1,1), objective = norm.dist)
+gamma.hat <- nlminb(start = c(1,1), objective = gamma.dist)
+lnorm.hat <- nlminb(start = c(1,1), objective = lnorm.dist)
+
+ggplot(earinfect)+
+  geom_histogram(aes(x = infections, y = after_stat(density)), colour = "white", position = "identity", alpha = 0.4)+
+  scale_fill_manual(values = c("blue", "orange"))+
+  stat_function(aes(colour = "1: poisson"), fun = dpois, args = list(pois.hat$par))+
+  stat_function(aes(colour = "1: norm"), fun = dnorm, args = list(norm.hat$par))+
+  stat_function(aes(colour = "1: lnorm"), fun = dlnorm, args = list(lnorm.hat$par))+
+  theme_bw()+
+  labs(y = "", colour = "Distribution")+
+  scale_colour_manual(values = c("blue", "orange", "black", "red", "purple", "grey"), 
+                      labels = c(paste0("Poisson [AIC: ",round(2*pois.hat$objective + 2*length(pois.hat$par),3),"]"),
+                                 paste0("Normal [AIC: ",round(2*norm.hat$objective + 2*length(norm.hat$par),3),"]"),
+                                 paste0("Log normal [AIC: ",round(2*lnorm.hat$objective + 2*length(lnorm.hat$par),3),"]")))
+  ggtitle("Clothing insulation level")
+ggsave("/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 2/distribution_choice_1.png", width = 20, height = 10, units = "cm")
+
+
+
+# Plot different disitrbutions --------------------------------------------
+
+library(fitdistrplus)
+par(mfrow = c(1, 1))
+fit.lnorm <- fitdist(earinfect$infections, "lnorm")
+fit.pois <- fitdist(earinfect$infections, "pois")
+fit.gamma <- fitdist(earinfect$infections, "gamma")
+fit.exp <- fitdist(earinfect$infections, "exp")
+plot.legend <- c("Log-normal", "Poisson", "Gamma", "Exponential")
+denscomp(list(fit.lnorm, fit.pois, fit.gamma, fit.exp), xlab = "Earinfections",fitlwd = 2, legendtext = plot.legend, xlim = c(0, max(earinfect$infections)), ylim = c(0, 0.2))
+qqcomp(list(fit.lnorm, fit.pois, fit.gamma), legendtext = plot.legend, xlim = c(0, max(earinfect$infections)))
+
+cat("AIC (log-normal):", fit.lnorm$aic, 
+    "\nAIC (poisson):", fit.pois$aic, 
+    "\nAIC (gamma):", fit.gamma$aic, 
+    "\nAIC (exponential):", fit.exp$aic)
+
+
+# plots -------------------------------------------------------------------
+
+ggplot(earinfect, aes(x = infections, fill = factor(location))) +
+  geom_bar(stat = "count") +
+  scale_fill_discrete(name = "Location",
+                      labels = c("Beach", "Non Beach"))
+
+ggplot(earinfect, aes(x = infections, fill = factor(swimmer))) +
+  geom_bar(stat = "count") +
+  scale_fill_discrete(name = "Swimmer",
+                      labels = c("Frequent", "Occational"))
+
+ggplot(earinfect, aes(x = infections, fill = factor(age))) +
+  geom_bar(stat = "count") +
+  scale_fill_discrete(name = "Age groups",
+                      labels = c( "15-19", "20-24", "25-29"))
+
+ggplot(earinfect, aes(x = infections, fill = factor(sex))) +
+  geom_bar(stat = "count") +
+  scale_fill_discrete(name = "Sex",
+                      labels = c( "Female", "Male"))
+
+
+
+# offset log or not log ---------------------------------------------------
+
+
+plot(earinfect$infections ~ earinfect$persons)
+abline(lm(infections ~ persons,data=earinfect),col='red')
+
+par(mfrow = c(1, 2))
+plot(earinfect$infections ~ log(earinfect$persons))
+abline(lm(infections ~ log(persons),data=earinfect),col='red')
+
+summary(lm(infections ~ log(persons),data=earinfect))$r.squared
+summary(lm(infections ~ persons,data=earinfect))$r.squared
+
+
+
+
+# negative binomial -------------------------------------------------------
+
+fitnb <- glm.nb(infections ~ offset(persons) + age * sex * location * swimmer, 
+                data = earinfect)
+summary(fitnb)
+drop1(fitnb)
+fitnb <- update(fitnb, .~.-age:sex:location:swimmer)
+summary(fitnb)
+drop1(fitnb)
+fitnb <- update(fitnb, .~.-age:sex:swimmer)
+summary(fitnb)
+drop1(fitnb)
+fitnb <- update(fitnb, .~.-age:location:swimmer)
+summary(fitnb)
+drop1(fitnb)
+fitnb <- update(fitnb, .~.-age:swimmer)
+summary(fitnb)
+drop1(fitnb)
+fitnb <- update(fitnb, .~.-location:swimmer)
+summary(fitnb)
+drop1(fitnb)
+fitnb <- update(fitnb, .~.-sex:location:swimmer)
+summary(fitnb)
+drop1(fitnb)
+fitnb <- update(fitnb, .~.-sex:swimmer)
+summary(fitnb)
+drop1(fitnb)
+fitnb <- update(fitnb, .~.-swimmer)
+summary(fitnb)
+
+par(mfrow = c(2, 2))
+plot(fitnb)
+
+# Hmmmm
