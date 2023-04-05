@@ -12,14 +12,17 @@ library(jtools)
 library(broom.mixed)
 
 if (Sys.getenv('USER') == "mortenjohnsen"){
-  setwd("/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/")
+  setwd("/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 2/")
+  figpath <- "/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 2/figs/"
 }else if (Sys.getenv('USER') == "freja"){
-  setwd("~/Documents/Uni/TiendeSemester/Adv. data analysis and stat. modelling/02424---Assignments")
+  setwd("~/Documents/Uni/TiendeSemester/Adv. data analysis and stat. modelling/02424---Assignments/Assignment 2")
+  figpath <- "~/Documents/Uni/TiendeSemester/Adv. data analysis and stat. modelling/02424---Assignments/Assignment 2/figs/"
 }else{
-  setwd("C:/Users/catdu/OneDrive/DTU/10. semester/Advanced Dataanalysis and Statistical Modelling/Assignment 1/02424---Assignments/")
+  setwd("C:/Users/catdu/OneDrive/DTU/10. semester/Advanced Dataanalysis and Statistical Modelling/Assignment 1/02424---Assignments/Assignment 2/")
+  figpath <- "C:/Users/catdu/OneDrive/DTU/10. semester/Advanced Dataanalysis and Statistical Modelling/Assignment 1/02424---Assignments/Assignment 2/"
 }
 
-earinfect <- read.table("Assignment 2/earinfect.txt", header = T)
+earinfect <- read.table("earinfect.txt", header = T)
 
 
 
@@ -43,7 +46,7 @@ ggplot(earinfect) +
   geom_histogram(aes(x = infections, y = after_stat(density)), bins = 15,  colour = "white", position = "identity", alpha = 0.4) +
   theme_bw() +
   labs(y = "", colour = "Distribution", title = "Earinfections") 
-ggsave("C:/Users/catdu/OneDrive/DTU/10. semester/Advanced Dataanalysis and Statistical Modelling/Assignment 1/02424---Assignments/Assignment 2/earinfect.png", width = 20, height = 10, units = "cm")
+ggsave(paste0(figpath,"earinfect.png"), width = 20, height = 10, units = "cm")
 
 mean(earinfect$infections)
 var(earinfect$infections)

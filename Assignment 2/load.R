@@ -19,17 +19,18 @@ library(lattice)
 library(ggplot2)
 
 if (Sys.getenv('USER') == "mortenjohnsen"){
-  setwd("/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/")
+  setwd("/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 2/")
   figpath <- "/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 2/figs/"
 }else if (Sys.getenv('USER') == "freja"){
-  setwd("~/Documents/Uni/TiendeSemester/Adv. data analysis and stat. modelling/02424---Assignments")
+  setwd("~/Documents/Uni/TiendeSemester/Adv. data analysis and stat. modelling/02424---Assignments/Assignment 2")
   figpath <- "~/Documents/Uni/TiendeSemester/Adv. data analysis and stat. modelling/02424---Assignments/Assignment 2/figs/"
 }else{
-  setwd("C:/Users/catdu/OneDrive/DTU/10. semester/Advanced Dataanalysis and Statistical Modelling/Assignment 1/02424---Assignments/")
+  setwd("C:/Users/catdu/OneDrive/DTU/10. semester/Advanced Dataanalysis and Statistical Modelling/Assignment 1/02424---Assignments/Assignment 2/")
+  figpath <- "C:/Users/catdu/OneDrive/DTU/10. semester/Advanced Dataanalysis and Statistical Modelling/Assignment 1/02424---Assignments/Assignment 2/"
 }
 
-earinfect <- read.table("Assignment 2/earinfect.txt", header = T)
-clothing <- read.csv(file = "Assignment 2/clothing.csv", header = T)
+earinfect <- read.table("earinfect.txt", header = T)
+clothing <- read.csv(file = "clothing.csv", header = T)
 
 #### Clothing ####
 #1)
@@ -606,14 +607,18 @@ ggsave("/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Se
 library(fitdistrplus)
 par(mfrow = c(1, 1))
 fit.lnorm <- fitdist(earinfect$infections, "lnorm")
+fit.negbin <- fitdist(earinfect$infections, "nbinom")
 fit.pois <- fitdist(earinfect$infections, "pois")
 fit.gamma <- fitdist(earinfect$infections, "gamma")
 fit.exp <- fitdist(earinfect$infections, "exp")
-plot.legend <- c("Log-normal", "Poisson", "Gamma", "Exponential")
-denscomp(list(fit.lnorm, fit.pois, fit.gamma, fit.exp), xlab = "Earinfections",fitlwd = 2, legendtext = plot.legend, xlim = c(0, max(earinfect$infections)), ylim = c(0, 0.2))
-qqcomp(list(fit.lnorm, fit.pois, fit.gamma), legendtext = plot.legend, xlim = c(0, max(earinfect$infections)))
+plot.legend <- c("Log-normal","Negative binomial", "Poisson", "Gamma", "Exponential")
+denscomp(list(fit.lnorm, fit.negbin, fit.pois, fit.gamma, fit.exp), 
+         xlab = "Earinfections",fitlwd = 2, legendtext = plot.legend, 
+         xlim = c(0, max(earinfect$infections)), ylim = c(0, 0.2))
+qqcomp(list(fit.lnorm, fit.negbin, fit.pois, fit.gamma), legendtext = plot.legend, xlim = c(0, max(earinfect$infections)))
 
 cat("AIC (log-normal):", fit.lnorm$aic, 
+    "\nAIC (negative binomial):", fit.negbin$aic,
     "\nAIC (poisson):", fit.pois$aic, 
     "\nAIC (gamma):", fit.gamma$aic, 
     "\nAIC (exponential):", fit.exp$aic)
@@ -693,3 +698,5 @@ par(mfrow = c(2, 2))
 plot(fitnb)
 
 # Hmmmm
+
+
