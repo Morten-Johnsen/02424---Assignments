@@ -16,8 +16,10 @@ library(broom.mixed)
 
 if (Sys.getenv('USER') == "mortenjohnsen"){
   setwd("/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/")
+  figpath <- "/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 2/figs/"
 }else if (Sys.getenv('USER') == "freja"){
   setwd("~/Documents/Uni/TiendeSemester/Adv. data analysis and stat. modelling/02424---Assignments")
+  figpath <- "~/Documents/Uni/TiendeSemester/Adv. data analysis and stat. modelling/02424---Assignments/Assignment 2/figs/"
 }else{
   setwd("C:/Users/catdu/OneDrive/DTU/10. semester/Advanced Dataanalysis and Statistical Modelling/Assignment 1/02424---Assignments/")
 }
@@ -36,7 +38,7 @@ melt(c.data) %>%
   scale_fill_manual(values = c("blue", "orange"))+
   facet_wrap(~variable, scales = "free")+
   theme_bw()
-ggsave("/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 2/clothing_data_histograms.png", width = 30, height = 10, units = "cm")
+ggsave(paste0(figpath,"clothing_data_histograms.png"), width = 30, height = 10, units = "cm")
 #### 1) Distributions
 beta.dist <- function(theta){
   return(-sum(dbeta(c.data$clo, shape1 = theta[1], shape2 = theta[2], log = T)))
@@ -80,7 +82,7 @@ ggplot(c.data)+
                                                                         paste0("Inv Gauss [AIC: ",round(2*invgaus.hat$objective + 2*length(invgaus.hat$par),3),"]"),
                                                                         paste0("Log-normal [AIC: ",round(2*lnorm.hat$objective + 2*length(lnorm.hat$par),3),"]")))+
   ggtitle("Clothing insulation level")
-ggsave("/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 2/distribution_choice_1.png", width = 20, height = 10, units = "cm")
+ggsave(paste0(figpath,"distribution_choice_1.png"), width = 20, height = 10, units = "cm")
 #gamma is best (HUSK clo må gerne være > 1, det er ikke en fraktion).
 fit.gamma <- glm(clo ~ tOut + tInOp + sex, data = c.data, family = Gamma(link = "cloglog"))
 add1(object = fit.gamma, scope = ~.+tOut:sex+tInOp:sex+tOut:tInOp, test = "Chisq")
