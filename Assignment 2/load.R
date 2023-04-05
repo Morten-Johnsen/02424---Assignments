@@ -13,6 +13,10 @@ library(jtools)
 library(numDeriv)
 library(latex2exp)
 library(broom.mixed)
+library(gridExtra)
+library(grid)
+library(lattice)
+library(ggplot2)
 
 if (Sys.getenv('USER') == "mortenjohnsen"){
   setwd("/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/")
@@ -97,6 +101,8 @@ Anova(fit.gamma, type = "III", test = "LR")
 pchisq(deviance(fit.gamma), df = dim(c.data)[1] - length(coefficients(fit.gamma)), lower.tail = F)
 #er passende
 summary(fit.gamma)
+1 - pchisq(48.344,df=799) ## pass the goodness of fit.
+
 confint(fit.gamma)
 
 #Manuelt
@@ -131,10 +137,10 @@ par(mfrow=c(2,2))
 postscript(file.path(getwd(), "fit.gamma.eps"), horizontal = FALSE, onefile = FALSE, paper = "special",height = 10, width = 10)
 #png(filename = "/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 2/residual_analysis_1.png", width = 20, height = 10, units = "cm", res = 1000)
 plot(fit.gamma, pch = 16)
-#dev.off()
+dev.off()
 c.data$residuals <- fit.gamma$residuals
 c.data$leverage <- hatvalues(fit.gamma)
-#dev.off()
+dev.off()
 
 #gender-specific residual analysis
 c.data$pred <- predict(fit.gamma)
@@ -181,7 +187,7 @@ ggplot(c.data)+
   geom_boxplot(aes(x = sex, y = pearson, fill = sex))+
   theme_bw()+
   ggtitle("Residual variation difference between genders")
-ggsave(filename = "/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 2/gender_variance.png", width = 20, height = 10, units = "cm")
+ggsave(filename = paste0(figpath,"gender_variance.png"), width = 20, height = 10, units = "cm")
 #=> Residuals are not identically distributed. This will be addressed later.
 
 par(mfrow=c(1,2))
@@ -192,7 +198,7 @@ p2 <- pacf(c.data$pearson, main = "PACF pearson residuals")
 #### 3) Model interpretation
 plot_summs(fit.gamma)+
   ggtitle("Parameter estimates [95% CI]")
-ggsave(filename = "/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 2/forest1.png", width = 20, height = 10, units = "cm")
+ggsave(filename = paste0(figpath,"forest1.png"), width = 20, height = 10, units = "cm")
 
 summary(fit.gamma)
 
@@ -234,8 +240,9 @@ c.data2$pearson <- residuals(fit.gamma2, type = "pearson")
 ggplot(c.data2)+
   geom_boxplot(aes(x = subjId, y = pearson, fill = sex))+
   theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
   labs(y = "Pearson residual", x = "Subject ID")
-ggsave("/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 2/residual_subjid2.png", width = 20, height = 10, units = "cm")
+ggsave(paste0(figpath,"residual_subjid2.png"), width = 20, height = 10, units = "cm")
 
 #still not constant residual variance as variations can be seen based on the subjId
 c.data2$residuals <- fit.gamma2$residuals
@@ -277,7 +284,10 @@ fourth <- ggplot(c.data2, aes(x = leverage, y = stdpearson))+
   labs(x = "Leverage", y = "Std. Pearson Residuals")+
   ggtitle("Residuals vs Leverage")
 
+png(filename = paste0(figpath,"residual_analysis_2.png"), width = 20, height = 10, units = "cm", res = 1000)
 grid.arrange(first, third, second, fourth, nrow = 2)
+dev.off()
+
 #again the residuals are fairly well-behaved as compared to the predicted values
 #showing a few outliers, but all residuals are within cooks distance.
 #the qqplot show poor normality. Even when accounting for 95% CIs.
@@ -292,21 +302,25 @@ acf <- c()
 lag <- c()
 subject <- c()
 
-for (i in unique(c.data2$subjId)){
-  c.data2 %>%
+for (i in unique(c.data2$subjId)){ # Loop over subjects
+  # Take out data for that subject
+  c.data2 %>% 
     filter(subjId == i) -> tmp
-  for (j in unique(tmp$day)){
+  for (j in unique(tmp$day)){ # Loop over different days that the subject has been at work
+    # Look at that specific day, calculate acf
     tmp %>%
       filter(day == j) %>%
       arrange(time) %>%
       select(pearson) %>%
       acf(plot = F) -> acf.tmp
+    # Save acf value for that subject on that day
     acf <- c(acf, acf.tmp$acf)
     lag <- c(lag, 0:(length(acf.tmp$acf)-1))
     subject <- c(subject, rep(i, length(acf.tmp$acf)))
   }
 }
 
+# Calculate the average per lag (accross subjects)
 acf.data <- data.frame("acf" = acf, "lag" = lag, "subject" = subject)
 mean.acf.data <- acf.data %>%
   group_by(lag) %>%
@@ -326,7 +340,7 @@ ggplot(acf.data)+
   theme(legend.position = "top")+
   guides(colour = guide_legend(override.aes=list(linetype = c("dashed", "solid"), linewidth = c(0.5, 0.5))))+
   ggtitle("Within day autocorrelation for each subject")
-ggsave("/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 2/within_day_autocor.png", width = 20, height = 10, units = "cm")
+ggsave(paste0(figpath,"within_day_autocor.png"), width = 20, height = 10, units = "cm")
 
 #6) Optimal weight/dispersion parameter
 library(caret)
