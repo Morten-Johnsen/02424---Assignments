@@ -14,13 +14,16 @@ library(numDeriv)
 library(latex2exp)
 library(broom.mixed)
 library(car)
+library(data.table)
 
 if (Sys.getenv('USER') == "mortenjohnsen"){
   setwd("/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/")
-}else if (Sys.getenv('USER') == "freja"){
+  }else if (Sys.getenv('USER') == "freja"){
   setwd("~/Documents/Uni/TiendeSemester/Adv. data analysis and stat. modelling/02424---Assignments")
+  figpath <- "~/Documents/Uni/TiendeSemester/Adv. data analysis and stat. modelling/02424---Assignments/Assignment 2/figs/"
 }else{
   setwd("C:/Users/catdu/OneDrive/DTU/10. semester/Advanced Dataanalysis and Statistical Modelling/Assignment 1/02424---Assignments/")
+  figpath <- ":/Users/catdu/OneDrive/DTU/10. semester/Advanced Dataanalysis and Statistical Modelling/Assignment 1/02424---Assignments/Assignment 2/figs/"
 }
 
 # Load of data
@@ -28,15 +31,16 @@ earinfect <- read.table("Assignment 2/earinfect.txt", header = T)
 head(earinfect)
 
 # Look at data
-summary(earinfect)
-earinfect[,sum(persons), by = swimmer]
-earinfect[, sum(persons), by =location]
-earinfect[, sum(persons), by=age]
-earinfect[, sum(persons), by = sex]
+data <- as.data.table(earinfect)
+summary(data)
+data[,sum(persons), by = swimmer]
+data[, sum(persons), by =location]
+data[, sum(persons), by=age]
+data[, sum(persons), by = sex]
 
-earinfect[persons == max(persons)]
-earinfect[,freq := infections/persons]
-earinfect[freq==max(freq)]
+data[persons == max(persons)]
+data[,freq := infections/persons]
+data[freq==max(freq)]
 
 
 earinfect$swimmer <- factor(earinfect$swimmer)
@@ -55,7 +59,7 @@ ggplot(earinfect) +
   geom_histogram(aes(x = infections, y = after_stat(density)), bins = 15,  colour = "white", position = "identity", alpha = 0.4) +
   theme_bw() +
   labs(y = "", colour = "Distribution", title = "Earinfections") 
-ggsave("C:/Users/catdu/OneDrive/DTU/10. semester/Advanced Dataanalysis and Statistical Modelling/Assignment 1/02424---Assignments/Assignment 2/earinfect.png", width = 20, height = 10, units = "cm")
+ggsave(paste0(figpath,"Cearinfect.png"), width = 20, height = 10, units = "cm")
 
 # Is there any difference in mean and variance of infections variable?
 mean(earinfect$infections)
