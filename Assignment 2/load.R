@@ -352,25 +352,26 @@ new <- data.frame(predict(dummy, newdata = c.data2))
 subjects <- length(names(new)[str_detect(names(new), pattern = "subjId")])-1
 
 #design matrix
-X <- as.matrix(cbind(1, 
-           new$tInOp, 
-           new[, names(new)[str_detect(names(new), pattern = "subjId")][-1]],
-           new$tInOp^2,
-           new[, names(new)[str_detect(names(new), pattern = "subjId")]]*new$tOut,
-           new[, names(new)[str_detect(names(new), pattern = "subjId")][-1]]*new$tInOp))
+
+# X <- as.matrix(cbind(1, 
+#            new$tInOp, 
+#            new[, names(new)[str_detect(names(new), pattern = "subjId")][-1]],
+#            new$tInOp^2,
+#            new[, names(new)[str_detect(names(new), pattern = "subjId")]]*new$tOut,
+#            new[, names(new)[str_detect(names(new), pattern = "subjId")][-1]]*new$tInOp))
 
 X <- as.matrix(cbind(1, new$tOut, new$sexmale, new$tOut*new$sexmale))
 
 glm.gamma.w2 <- function(theta){
   y <- new$clo
-  k <- rep(1/theta[1], length(y))
-  beta <- theta[-1]
-  #w <- numeric(length(y))
-  #n <- length(theta)
-  #w.male <- 1/theta[n-1]#theta[length(coefficients(fit.gamma2))+1]
-  #w.female <- 1/theta[n]#theta[length(coefficients(fit.gamma2))+2]
-  #w[as.logical(new$sexmale)] <- w.male
-  #w[as.logical(new$sexfemale)] <- w.female #shape
+  #k <- rep(1/theta[1], length(y))
+  beta <- theta[-c(1,2)]
+  k <- numeric(length(y))
+  
+  k.male <- 1/theta[1]
+  k.female <- 1/theta[2]
+  k[as.logical(new$sexmale)] <- k.male
+  k[as.logical(new$sexfemale)] <- k.female #shape
   
   eta <- as.numeric(X %*% matrix(beta, ncol = 1))
 
@@ -379,58 +380,85 @@ glm.gamma.w2 <- function(theta){
   return(-sum(dgamma(y, shape = k, scale = mu/k, log = T)))
 }
 
-manual.fit2 <- nlminb(start = c(0.02,as.numeric(coefficients(fit.gamma2))-0.001), objective = glm.gamma.w2, control=list(eval.max = 500, iter.max = 1000))
-manual.fit2 <- nlminb(start = c(1,as.numeric(coefficients(fit.gamma))), objective = glm.gamma.w2)
+#manual.fit2 <- nlminb(start = c(0.02,as.numeric(coefficients(fit.gamma2))-0.001), objective = glm.gamma.w2, control=list(eval.max = 500, iter.max = 1000))
+manual.fit2 <- nlminb(start = c(1,1,as.numeric(coefficients(fit.gamma))), objective = glm.gamma.w2)
+#dispersion parameter males = 1/k_male, dispersion parameter females = 1/k_female, model parameters....
 manual.fit2$par
-logLik(fit.gamma2)
+1/manual.fit2$par[1:2]
+
 manual.fit2$objective
 summary(fit.gamma)
 
-par2 <- optim(par = c(as.numeric(coefficients(fit.gamma2)),1,1), fn = glm.gamma.w2)
-par2$par
-
 #looking at the variance associated with each gender based on the weight:
-theta.hat <- manual.fit2$par
+theta.hat <- c(manual.fit2$par[3:6], 1/manual.fit2$par[1:2])
 #for the gamma distribution we get: var = shape*scale^2 = k*theta^2
 #with our parametrization: scale = mu/shape = mu/k
 #Thus: var = shape * mu^2/shape^2 = mu^2/shape = mu^2/k
 #(our weight w is actually an estimate of the shape/dispersion parameter k) and thus:
 ##male
-var.male <- (theta.hat[1] + theta.hat[2] * c.data$tOut[c.data$sex == "male"] + theta.hat[3] * as.numeric(c.data$sex == "male")[c.data$sex == "male"] + theta.hat[4] * as.numeric(c.data$sex == "male")[c.data$sex == "male"] * c.data$tOut[c.data$sex == "male"])^2/theta.hat[5]
+var.male <- (theta.hat[1] + theta.hat[2] * c.data$tOut[c.data$sex == "male"] + theta.hat[3] * as.numeric(c.data$sex == "male")[c.data$sex == "male"] + theta.hat[4] * as.numeric(c.data$sex == "male")[c.data$sex == "male"] * c.data$tOut[c.data$sex == "male"])^2 / theta.hat[5]
 mean(var.male)
+lines(var.male, col = 3)
 ##female
-var.female <- (theta.hat[1] + theta.hat[2] * c.data$tOut[c.data$sex == "female"] + theta.hat[3] * as.numeric(c.data$sex == "female")[c.data$sex == "female"] + theta.hat[4] * as.numeric(c.data$sex == "female")[c.data$sex == "female"] * c.data$tOut[c.data$sex == "female"])^2/theta.hat[6]
+var.female <- (theta.hat[1] + theta.hat[2] * c.data$tOut[c.data$sex == "female"] + theta.hat[3] * as.numeric(c.data$sex == "female")[c.data$sex == "female"] + theta.hat[4] * as.numeric(c.data$sex == "female")[c.data$sex == "female"] * c.data$tOut[c.data$sex == "female"])^2 / theta.hat[6]
 mean(var.female)
+plot(var.female, type = "l")
 #Higher variance for the women as expected
 
 #Notes on the variance function V(.) as compareed to the variance Var(.) on page 93.
 
 #7) Profile likelihood
-glm.gamma.w.pf <- function(w1,w2){
-  y <- c.data2$clo
-  w.male <- w1
-  w.female <- w2
-  w <- numeric(dim(c.data2)[1])
-  w[c.data2$sex == "male"] <- w.male
-  w[c.data2$sex == "female"] <- w.female
-  tmp.func <- function(theta){
-    eta <- theta[1] + theta[2] * c.data2$tOut + theta[3] * c.data2$tInOp + theta[4] * as.numeric(c.data2$sex == "male")
-    mu <- 1-exp(-exp(eta))
-    
-    w <- w*mu^2
-    d <- 2*(y/mu - log(y/mu) - 1)
-    return(1/2 * sum(w*d))
-  }
+glm.gamma.w.pf <- function(d_male,d_female){
+  y <- new$clo
+  k <- numeric(length(y))
+  k.male <- 1/d_male
+  k.female <- 1/d_female
+  k[as.logical(new$sexmale)] <- k.male
+  k[as.logical(new$sexfemale)] <- k.female #shape
   
+  tmp.func <- function(beta, shape = k){
+    eta <- as.numeric(X %*% matrix(beta, ncol = 1))
+    
+    mu <- 1-exp(-exp(eta))
+    return(-sum(dgamma(y, shape = shape, scale = mu/shape, log = T)))
+  }
   fit.tmp <- nlminb(start = c(0,0,0,0), objective = tmp.func)
   return(fit.tmp$objective)
 }
 
-w1 <- seq(-5, -1, length.out = 100)
-w2 <- seq(-12, -8, length.out = 100)
+
+w1 <- seq(0.025, 0.04, length.out = 20)
+w2 <- seq(0.075, 0.095, length.out = 20)
 z <- outer(w1, w2, FUN = Vectorize(function(w1,w2) glm.gamma.w.pf(w1,w2)))
 
-contour(w1, w2, z)
+png(filename = "countour_pf.png", width = 20, height = 10, units = "cm", res = 500)
+contour(w1, w2, z, xlab = "male", ylab = "female", nlevels = 50)
+dev.off()
+
+plot_ly(x = w1, y = w2, z = z, type = "contour")
+library(plotly)
+
+glm.gamma.w.pf2 <- function(d){
+  d_male <- d[1]
+  d_female <- d[2]
+  y <- new$clo
+  k <- numeric(length(y))
+  k.male <- 1/d_male
+  k.female <- 1/d_female
+  k[as.logical(new$sexmale)] <- k.male
+  k[as.logical(new$sexfemale)] <- k.female #shape
+  
+  tmp.func <- function(beta, shape = k){
+    eta <- as.numeric(X %*% matrix(beta, ncol = 1))
+    
+    mu <- 1-exp(-exp(eta))
+    return(-sum(dgamma(y, shape = shape, scale = mu/shape, log = T)))
+  }
+  fit.tmp <- nlminb(start = c(0,0,0,0), objective = tmp.func)
+  return(fit.tmp$objective)
+}
+
+z <- apply(reshape::expand(data.frame("d_male" = w1, "d_female" = w2)), MARGIN = 1, glm.gamma.w.pf2)
 
 #### Earinfections ####
 #1)
@@ -568,37 +596,28 @@ pois.dist <- function(theta){
   return(-sum(dpois(earinfect$infections, lambda = theta, log = T)))
 }
 
-norm.dist <- function(theta){
-  return(-sum(dnorm(earinfect$infections, mean = theta[1], sd = theta[2], log = T)))
-}
-
-gamma.dist <- function(theta){
-  return(-sum(dgamma(earinfect$infections, shape = theta[1], rate = theta[2], log = T)))
-}
-
-lnorm.dist <- function(theta){
-  return(-sum(dlnorm(x=earinfect$infections, meanlog = theta[1], sdlog = theta[2], log = T)))
+neg.binom <- function(theta){
+  return(-sum(dnbinom(earinfect$infections, size = theta[1], mu = theta[2], log = T)))
 }
 
 pois.hat <- nlminb(start = c(1), objective = pois.dist)
-norm.hat <- nlminb(start = c(1,1), objective = norm.dist)
-gamma.hat <- nlminb(start = c(1,1), objective = gamma.dist)
-lnorm.hat <- nlminb(start = c(1,1), objective = lnorm.dist)
+nbinom.hat <- nlminb(start = c(1,1), objective = neg.binom)
+pois.dens <- dpois(1:21, lambda = pois.hat$par)
+nbinom.dens <- dnbinom(1:21, size = nbinom.hat$par[1], mu = nbinom.hat$par[2])
 
 ggplot(earinfect)+
-  geom_histogram(aes(x = infections, y = after_stat(density)), colour = "white", position = "identity", alpha = 0.4)+
+  geom_histogram(aes(x = infections, y = after_stat(density)), colour = "white", position = "identity", alpha = 0.4, bins = 9)+
   scale_fill_manual(values = c("blue", "orange"))+
-  stat_function(aes(colour = "1: poisson"), fun = dpois, args = list(pois.hat$par))+
-  stat_function(aes(colour = "1: norm"), fun = dnorm, args = list(norm.hat$par))+
-  stat_function(aes(colour = "1: lnorm"), fun = dlnorm, args = list(lnorm.hat$par))+
+  geom_step(data = data.frame(pois.dens), aes(x = 1:21, y = pois.dens, colour = "1: poisson"))+
+  geom_step(data = data.frame(nbinom.dens), aes(x = 1:21, y = nbinom.dens, colour = "2: negative binomial"))+
   theme_bw()+
-  labs(y = "", colour = "Distribution")+
+  theme(legend.position = "top")+
+  labs(y = "", colour = "Distribution", x = "Ear infections")+
   scale_colour_manual(values = c("blue", "orange", "black", "red", "purple", "grey"), 
                       labels = c(paste0("Poisson [AIC: ",round(2*pois.hat$objective + 2*length(pois.hat$par),3),"]"),
-                                 paste0("Normal [AIC: ",round(2*norm.hat$objective + 2*length(norm.hat$par),3),"]"),
-                                 paste0("Log normal [AIC: ",round(2*lnorm.hat$objective + 2*length(lnorm.hat$par),3),"]")))
-  ggtitle("Clothing insulation level")
-ggsave("/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 2/distribution_choice_1.png", width = 20, height = 10, units = "cm")
+                                 paste0("Negative Binomial [AIC: ",round(2*nbinom.hat$objective + 2*length(nbinom.hat$par),3),"]")))+
+  ggtitle("Ear infections")
+ggsave("distribution_choice_3.png", width = 20, height = 10, units = "cm")
 
 
 
@@ -700,3 +719,30 @@ plot(fitnb)
 # Hmmmm
 
 
+dummy <- dummyVars(" ~ .", data = earinfect)
+earinf <- data.frame(predict(dummy, newdata = earinfect))
+
+X <- cbind(1, earinf$swimmerOccas, earinf$locationNonBeach, earinf$sexMale, earinf$age20.24, earinf$age25.29)
+
+nbinom.glm <- function(theta){
+  trials <- earinf$persons
+  successes <- earinf$infections
+  p <- theta[1]
+  beta <- theta[-1]
+  eta <- as.numeric(X %*% matrix(beta, ncol = 1))
+  
+  mu <- exp(eta)
+  
+  return(-sum(dnbinom(x = successes, size = mu*(1-p)/(p), prob = 1-p, log = T)))
+}
+
+fit <- nlminb(start = c(0.5,rep(0.1,6)), objective = nbinom.glm)
+
+library(MASS)
+fit2 <- glm.nb(infections ~ swimmer + location + sex + age, 
+               link = log, 
+               offset = persons,
+               data = earinfect)
+fit$par
+fit2$coefficients
+summary(fit2)
