@@ -236,6 +236,8 @@ summary(fit.gamma2)
 #subject id is highly significant -> normally this would be an indicator to use a mixed model instead.
 #the residual deviance for this model is a lot lower than for the sex-based model above.
 
+1 - pchisq(12.715,df=661) ## pass the goodness of fit.
+
 #### 5) Residual analysis including within day autocorrelation
 c.data2$pearson <- residuals(fit.gamma2, type = "pearson")
 ggplot(c.data2)+
@@ -527,6 +529,8 @@ ggplot(earinfect, aes(x = as.numeric(location)))+
 
 fit.pois <- glm(infections ~ offset(log(persons)) + age * sex * location * swimmer, data = earinfect, family = poisson)
 fit.pois.full <- fit.pois
+1-pchisq(3.3307e-15, 0)
+
 drop1(fit.pois)
 fit.pois <- update(fit.pois, .~.-age:sex:location:swimmer)
 anova(fit.pois, test = "Chisq")
