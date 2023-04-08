@@ -183,89 +183,87 @@ plot(fit.pois)
 ## Forestplot
 plot_summs(fit.pois)
 
-
 # Negative binomial model -------------------------------------------------
+library(MASS)
+fit2 <- glm.nb(infections ~ offset(log(persons)) + swimmer + location + sex + age + age:sex + age:location + sex:location + location:swimmer + age:sex:location, data = earinfect)
 
-fit.nb <- glm.nb(infections ~ persons + age * sex * location * swimmer, 
-                 data = earinfect)
-fit.nb_full <- fit.nb
-1 - pchisq(fit.nb$deviance, df = fit.nb$df.residual) 
-coefficients(fit.nb)
-anova(fit.nb, test = "Chisq")
-drop1(fit.nb, test = "Chisq")
+fit2$coefficients
+anova(fit2, test = "Chisq")
+fit2 <- update(fit2, .~.-location:sex:age)
+anova(fit2, test = "Chisq")
+fit2 <- update(fit2, .~.-location:age-swimmer:location)
+anova(fit2, test = "Chisq")
+fit2 <- update(fit2, .~.-sex:age)
+anova(fit2, test = "Chisq")
+fit2 <- update(fit2, .~.-age)
+anova(fit2, test = "Chisq")
+fit2 <- update(fit2, .~.-location:sex)
+anova(fit2, test = "Chisq")
+fit2 <- update(fit2, .~.-sex)
+anova(fit2, test = "Chisq")
+fit2 <- update(fit2, .~.-swimmer)
+anova(fit2, test = "Chisq")
 
-# Drop the largest interaction
-fit.nb <- update(fit.nb, .~.-age:sex:location:swimmer)
-1 - pchisq(fit.nb$deviance, df = fit.nb$df.residual) 
-length(coefficients(fit.nb))
-anova(fit.nb, test = "Chisq")
-drop1(fit.nb, test = "Chisq")
+AIC(fit2)
+AIC(fit.pois.final)
 
-fit.nb <- update(fit.nb, .~.-age:sex:swimmer)
-1 - pchisq(fit.nb$deviance, df = fit.nb$df.residual) 
-length(coefficients(fit.nb))
-anova(fit.nb, test = "Chisq")
-drop1(fit.nb, test = "Chisq")
+pchisq(fit2$deviance, df = fit2$df.residual, lower.tail = F)
 
-fit.nb <- update(fit.nb, .~.-sex:location:swimmer)
-1 - pchisq(fit.nb$deviance, df = fit.nb$df.residual) 
-length(coefficients(fit.nb))
-anova(fit.nb, test = "Chisq")
-drop1(fit.nb, test = "Chisq")
+plot(fit2)
 
-fit.nb <- update(fit.nb, .~.-age:location:swimmer)
-1 - pchisq(fit.nb$deviance, df = fit.nb$df.residual) 
-length(coefficients(fit.nb))
-anova(fit.nb, test = "Chisq")
-drop1(fit.nb, test = "Chisq")
+sumstats <- summary(fit2)
+tibble("Parameter" = names(sumstats$coefficients[,1]),
+       "Estimate" = sumstats$coefficients[,1], 
+       "95% lower" = confint(fit2)[,1], 
+       "95% upper" = confint(fit2)[,2], 
+       "Std. Error" = sumstats$coefficients[,2],
+       "z value" = sumstats$coefficients[,3],
+       "p-value" = sumstats$coefficients[,4]
+) -> NB_model
 
-fit.nb <- update(fit.nb, .~.-persons)
-1 - pchisq(fit.nb$deviance, df = fit.nb$df.residual) 
-length(coefficients(fit.nb))
-anova(fit.nb, test = "Chisq")
-drop1(fit.nb, test = "Chisq")
+print(xtable(NB_model , type = "latex" , caption = "Parameters for the negative binomial model" 
+             , label = "tab:NBparms", digits = -1), file = "NBmodel.tex", caption.placement = "top")
 
-fit.nb <- update(fit.nb, .~.-sex:swimmer)
-1 - pchisq(fit.nb$deviance, df = fit.nb$df.residual) 
-length(coefficients(fit.nb))
-anova(fit.nb, test = "Chisq")
-drop1(fit.nb, test = "Chisq")
+earinfect$residualsNB <- fit2$residuals
+earinfect$pearsonNB <- residuals(fit2, type = "pearson")
+earinfect$leverageNB <- hatvalues(fit2)
+#gender-specific residual analysis
+earinfect$predNB <- predict(fit2)
 
-fit.nb <- update(fit.nb, .~.-age:swimmer)
-1 - pchisq(fit.nb$deviance, df = fit.nb$df.residual) 
-length(coefficients(fit.nb))
-anova(fit.nb, test = "Chisq")
-drop1(fit.nb, test = "Chisq")
+sigma_sq <- fit2$deviance / (dim(earinfect)[1] - length(coefficients(fit2)))
+earinfect$stdpearsonNB <- earinf$pearsonNB/sqrt(sigma_sq*(1-earinfect$leverageNB))
 
-fit.nb <- update(fit.nb, .~.-location:swimmer)
-1 - pchisq(fit.nb$deviance, df = fit.nb$df.residual) 
-length(coefficients(fit.nb))
-anova(fit.nb, test = "Chisq")
-drop1(fit.nb, test = "Chisq")
+first <- ggplot(earinfect)+
+  geom_point(aes(x = predNB, y = residualsNB))+
+  geom_hline(aes(yintercept = 0), colour = "blue", linetype = "dashed")+
+  geom_smooth(aes(x = predNB, y = residualsNB), colour = "blue", se = F)+
+  theme_bw()+
+  labs(x = "Predicted", y = "Residuals")+
+  ggtitle("Residuals vs Fitted")
 
-fit.nb <- update(fit.nb, .~.-age:sex:location)
-1 - pchisq(fit.nb$deviance, df = fit.nb$df.residual) 
-length(coefficients(fit.nb))
-anova(fit.nb, test = "Chisq")
-drop1(fit.nb, test = "Chisq")
+second <- ggplot(earinfect)+
+  geom_point(aes(x = predNB, y = sqrt(stdpearsonNB)))+
+  geom_smooth(aes(x=predNB,y = sqrt(stdpearsonNB)), colour = "blue", se = F)+
+  theme_bw()+
+  labs(x = "Predicted", y = TeX("$\\sqrt{Std. Pearson Residuals}$"))+
+  ggtitle("Scale-Location")
 
-fit.nb <- update(fit.nb, .~.-swimmer)
-1 - pchisq(fit.nb$deviance, df = fit.nb$df.residual) 
-length(coefficients(fit.nb))
-anova(fit.nb, test = "Chisq")
-drop1(fit.nb, test = "Chisq")
+third <- ggplot(earinfect, aes(sample = stdpearsonNB))+
+  stat_qq_band(fill = "blue", alpha = 0.2)+
+  stat_qq_line(colour = "blue")+
+  stat_qq_point()+
+  theme_bw()+
+  labs(x = "Theoretical quantiles", y = "Std. Pearson Residuals")+
+  ggtitle("Normal QQ")
 
-# Looks meh..
-summary(fit.nb)
+fourth <- ggplot(earinfect, aes(x = leverageNB, y = stdpearsonNB))+
+  geom_point()+
+  geom_hline(aes(yintercept = 0), colour = "blue", linetype = "dashed")+
+  geom_smooth(colour = "blue", se = F)+
+  theme_bw()+
+  labs(x = "Leverage", y = "Std. Pearson Residuals")+
+  ggtitle("Residuals vs Leverage")
 
-par(mfrow = c(2, 2))
-plot(fit.pois)
-
-
-# AIC for models ----------------------------------------------------------
-
-AIC(fit.nb)
-AIC(fit.pois)
-# The NB model is better
-
-
+png(filename = paste0(figpath,"residual_NB.png"), width = 20, height = 10, units = "cm", res = 1000)
+grid.arrange(first, third, second, fourth, nrow = 2)
+dev.off()
