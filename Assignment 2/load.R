@@ -468,7 +468,7 @@ library(car)
 head(earinfect)
 earinfect$swimmer <- factor(earinfect$swimmer)
 earinfect$location <- factor(earinfect$location)
-earinfect$age <- factor(earinfect$age, ordered = T)
+earinfect$age <- factor(earinfect$age)
 earinfect$sex <- factor(earinfect$sex)
 
 fit.pois <- glm(infections ~ offset(persons) + age * sex * location * swimmer, data = earinfect, family = poisson(link = 'log'))
@@ -722,31 +722,86 @@ plot(fitnb)
 
 # Hmmmm
 
-
-dummy <- dummyVars(" ~ .", data = earinfect)
-earinf <- data.frame(predict(dummy, newdata = earinfect))
-
-X <- cbind(1, earinf$swimmerOccas, earinf$locationNonBeach, earinf$sexMale, earinf$age20.24, earinf$age25.29)
-
-nbinom.glm <- function(theta){
-  trials <- earinf$persons
-  successes <- earinf$infections
-  p <- theta[1]
-  beta <- theta[-1]
-  eta <- as.numeric(X %*% matrix(beta, ncol = 1))
-  
-  mu <- exp(eta)
-  
-  return(-sum(dnbinom(x = successes, size = mu*(1-p)/(p), prob = 1-p, log = T)))
-}
-
-fit <- nlminb(start = c(0.5,rep(0.1,6)), objective = nbinom.glm)
-
 library(MASS)
-fit2 <- glm.nb(infections ~ swimmer + location + sex + age, 
-               link = log, 
-               offset = persons,
-               data = earinfect)
-fit$par
+fit2 <- glm.nb(infections ~ offset(log(persons)) + swimmer + location + sex + age + age:sex + age:location + sex:location + location:swimmer + age:sex:location, data = earinfect)
+
 fit2$coefficients
-summary(fit2)
+anova(fit2, test = "Chisq")
+fit2 <- update(fit2, .~.-location:sex:age)
+anova(fit2, test = "Chisq")
+fit2 <- update(fit2, .~.-location:age-swimmer:location)
+anova(fit2, test = "Chisq")
+fit2 <- update(fit2, .~.-sex:age)
+anova(fit2, test = "Chisq")
+fit2 <- update(fit2, .~.-age)
+anova(fit2, test = "Chisq")
+fit2 <- update(fit2, .~.-location:sex)
+anova(fit2, test = "Chisq")
+fit2 <- update(fit2, .~.-sex)
+anova(fit2, test = "Chisq")
+fit2 <- update(fit2, .~.-swimmer)
+anova(fit2, test = "Chisq")
+
+AIC(fit2)
+AIC(fit.pois.final)
+
+pchisq(fit2$deviance, df = fit2$df.residual, lower.tail = F)
+
+plot(fit2)
+
+sumstats <- summary(fit2)
+tibble("Parameter" = names(sumstats$coefficients[,1]),
+  "Estimate" = sumstats$coefficients[,1], 
+           "95% lower" = confint(fit2)[,1], 
+           "95% upper" = confint(fit2)[,2], 
+           "Std. Error" = sumstats$coefficients[,2],
+           "z value" = sumstats$coefficients[,3],
+           "p-value" = sumstats$coefficients[,4]
+           ) -> NB_model
+
+print(xtable(NB_model , type = "latex" , caption = "Parameters for the negative binomial model" 
+             , label = "tab:NBparms"), file = "NBmodel.tex", caption.placement = "top")
+
+earinfect$residualsNB <- fit2$residuals
+earinfect$pearsonNB <- residuals(fit2, type = "pearson")
+earinfect$leverageNB <- hatvalues(fit2)
+#gender-specific residual analysis
+earinfect$predNB <- predict(fit2)
+
+sigma_sq <- fit2$deviance / (dim(earinfect)[1] - length(coefficients(fit2)))
+earinfect$stdpearsonNB <- earinf$pearsonNB/sqrt(sigma_sq*(1-earinfect$leverageNB))
+
+first <- ggplot(earinfect)+
+  geom_point(aes(x = predNB, y = residualsNB))+
+  geom_hline(aes(yintercept = 0), colour = "blue", linetype = "dashed")+
+  geom_smooth(aes(x = predNB, y = residualsNB), colour = "blue", se = F)+
+  theme_bw()+
+  labs(x = "Predicted", y = "Residuals")+
+  ggtitle("Residuals vs Fitted")
+
+second <- ggplot(earinfect)+
+  geom_point(aes(x = predNB, y = sqrt(stdpearsonNB)))+
+  geom_smooth(aes(x=predNB,y = sqrt(stdpearsonNB)), colour = "blue", se = F)+
+  theme_bw()+
+  labs(x = "Predicted", y = TeX("$\\sqrt{Std. Pearson Residuals}$"))+
+  ggtitle("Scale-Location")
+
+third <- ggplot(earinfect, aes(sample = stdpearsonNB))+
+  stat_qq_band(fill = "blue", alpha = 0.2)+
+  stat_qq_line(colour = "blue")+
+  stat_qq_point()+
+  theme_bw()+
+  labs(x = "Theoretical quantiles", y = "Std. Pearson Residuals")+
+  ggtitle("Normal QQ")
+
+fourth <- ggplot(earinfect, aes(x = leverageNB, y = stdpearsonNB))+
+  geom_point()+
+  geom_hline(aes(yintercept = 0), colour = "blue", linetype = "dashed")+
+  geom_smooth(colour = "blue", se = F)+
+  theme_bw()+
+  labs(x = "Leverage", y = "Std. Pearson Residuals")+
+  ggtitle("Residuals vs Leverage")
+
+png(filename = paste0(figpath,"residual_NB.png"), width = 20, height = 10, units = "cm", res = 1000)
+grid.arrange(first, third, second, fourth, nrow = 2)
+dev.off()
