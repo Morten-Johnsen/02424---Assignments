@@ -53,13 +53,19 @@ str(c.data)
 #### ------------- Part 1: Fitting a linear mixed effect model ---------------
 
 ## Using subjId as random effect ##
+# I use the following method: first fit full model and reduce. Then fit another
+# model, starting with a simple model and extending. Compare the two models
+# Using chisq-testing: it does not take the random effects into account
+# therefore, we compare the log-likelihoods to see if there is an improvement.
+# Jan approved of comparing models during reduction/extension using chisq, and 
+# then testing for the model improvement with anova. In the end, we should also 
+# consider whether the random effects are significant or not.
+
 
 ## Simple lme: use ML method so we can compare models!
 fit.mm<-lme(clo~tOut+tInOp+time+day+tOut*tInOp*time*day, 
             random = ~1|subjId, data=c.data, method="ML")
 
-# Using chisq-testing: it does not take the random effects into account
-# therefore, we compare the log-likelihoods to see if there is an improvement.
 fit.mm
 anova(fit.mm)
 drop1(fit.mm, test = "Chisq") 
