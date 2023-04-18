@@ -44,6 +44,18 @@ melt(c.data,id = c('subjId','clo'))%>%
   facet_wrap(~variable, scales = "free")+
   theme_bw()
 
+#Another plot looking at the 10 first subjects, clearly showing a difference between subjects depending on temperature
+c.data
+melt(c.data,id = c('subjId','clo','day'))%>%
+  filter(day == 1 & subjId %in% unique(c.data$subjId)[1:10]) %>%
+  ggplot()+
+  geom_point(aes(x = value, y=clo, colour = factor(subjId)))+
+  geom_line(aes(x = value, y=clo, colour = factor(subjId), linetype = factor(day)), show.legend = FALSE)+
+  facet_wrap(~variable, scales = "free")+
+  theme_bw()+
+  labs(colour = "SubjectID:", y = "Clothing insulation level", x = "Value")+
+  theme(legend.position = "top")+
+  ggtitle("Between subject differences in Clothing insulation level")
 
 # Make factors
 c.data$subjId <- factor(c.data$subjId)
