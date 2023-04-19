@@ -164,3 +164,77 @@ fit.mmfwREML<-lme(clo ~ tOut + day + time + tOut:day + day:time,
                 random = ~1|subjId, data=c.data, method="REML")
 anova(fit.mmfwREML) # This test does also not take random effects into account.
 
+
+
+
+######### Fit a mixed effect model that include subjId and day #########
+# Effects needs to be related in order to be nested
+# In this case we should nest to subjId
+
+
+# Use same term as fit.mm4$terms as beginning:
+# c.data$f <- with(c.data, subjId:day)
+fit.mm.nest <- lme(clo ~ tOut + tInOp + time + day + tOut:tInOp + tOut:time + tOut:day + tInOp:day + time:day + tOut:tInOp:day + tOut:time:day,
+                   random = ~1 + day|subjId,         # the effect of day can be different for each subjectID  (eller skal det være omvendt?)
+                   # ~ 1 | f,
+                   # list(subjId = ~ 1, day = ~ 1), # specifies that subjId is nested within day
+                   data = c.data, method="ML")
+
+
+fit.mm.nest
+anova(fit.mm.nest)
+drop1(fit.mm.nest, test = "Chisq") 
+
+# Drop tOut:tInOp:day
+fit.mm.nest1 <- update(fit.mm.nest, .~.-tOut:tInOp:day)
+anova(fit.mm.nest1)
+drop1(fit.mm.nest1, test = "Chisq") 
+logLik(fit.mm.nest)
+logLik(fit.mm.nest1)
+anova(fit.mm.nest,fit.mm.nest1)
+# log likelihood is lower, but we continue. p-value is big :))
+
+# Drop tOut:tInOp
+fit.mm.nest2 <- update(fit.mm.nest1, .~.-tOut:tInOp)
+anova(fit.mm.nest2)
+drop1(fit.mm.nest2, test = "Chisq") 
+logLik(fit.mm.nest1)
+logLik(fit.mm.nest2)
+anova(fit.mm.nest1,fit.mm.nest2)
+# log likelihood is smaller, but we continue. p-value is big :))
+
+# Drop tOut:time:day
+fit.mm.nest3 <- update(fit.mm.nest2, .~.-tOut:time:day)
+anova(fit.mm.nest3)
+drop1(fit.mm.nest3, test = "Chisq") 
+logLik(fit.mm.nest2)
+logLik(fit.mm.nest3)
+anova(fit.mm.nest2,fit.mm.nest3)
+# log likelihood is lower, but we continue. p-value is big :))
+
+# Drop tOut:tInOp:time:day
+fit.mm.nest4 <- update(fit.mm.nest3, .~.-tOut:time - time:day)
+anova(fit.mm.nest4)
+drop1(fit.mm.nest4, test = "Chisq") 
+logLik(fit.mm.nest3)
+logLik(fit.mm.nest4)
+anova(fit.mm.nest3,fit.mm.nest4)
+# log likelihood is lower, but we continue. p-value is big :))
+
+# Drop tOut:tInOp:time:day
+fit.mm.nest5 <- update(fit.mm.nest4, .~.-tOut:day)
+anova(fit.mm.nest5)
+drop1(fit.mm.nest5, test = "Chisq") 
+logLik(fit.mm.nest4)
+logLik(fit.mm.nest5)
+anova(fit.mm.nest4,fit.mm.nest5)
+# log likelihood is lower, but we continue. p-value is big :))
+
+# Drop tOut:tInOp:time:day
+fit.mm.nest6 <- update(fit.mm.nest5, .~.-time)
+anova(fit.mm.nest6)
+drop1(fit.mm.nest6, test = "Chisq") 
+logLik(fit.mm.nest5)
+logLik(fit.mm.nest6)
+anova(fit.mm.nest5,fit.mm.nest6)
+# log likelihood is lower, but we continue. p-value is big :))
