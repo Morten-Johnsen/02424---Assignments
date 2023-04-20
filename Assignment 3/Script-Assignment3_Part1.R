@@ -46,7 +46,7 @@ melt(c.data,id = c('subjId','clo'))%>%
 
 #Another plot looking at the 10 first subjects, clearly showing a difference between subjects depending on temperature
 c.data
-melt(c.data,id = c('subjId','clo','day'))%>%
+p1 <- melt(c.data,id = c('subjId','clo','day'))%>%
   filter(day == 1 & subjId %in% unique(c.data$subjId)[1:10]) %>%
   ggplot()+
   geom_point(aes(x = value, y=clo, colour = factor(subjId)))+
@@ -56,6 +56,37 @@ melt(c.data,id = c('subjId','clo','day'))%>%
   labs(colour = "SubjectID:", y = "Clothing insulation level", x = "Value")+
   theme(legend.position = "top")+
   ggtitle("Between subject differences in Clothing insulation level")
+ggsave(filename = file.path(figpath, "subjIdDifferences.png"), plot = p1)
+
+
+p2 <- melt(c.data,id = c('subjId','clo','day'))%>%
+  filter(day == 1 & subjId %in% unique(c.data$subjId)[1:10]) %>%
+  ggplot()+
+  geom_histogram(aes(x = value, fill = factor(subjId))) +
+  # geom_point(aes(x = value, y=clo, colour = factor(subjId)))+
+  # geom_line(aes(x = value, y=clo, colour = factor(subjId), linetype = factor(day)), show.legend = FALSE)+
+  facet_wrap(~subjId, scales = "free")+
+  theme_bw()+
+  labs(colour = "SubjectID:", y = "Clothing insulation level", x = "Value")+
+  theme(legend.position = "top")+
+  ggtitle("Between subject differences in Clothing insulation level")
+p2
+
+
+melt(c.data,id = c('subjId','clo','day'))%>%
+  filter(day == 1 & subjId %in% unique(c.data$subjId)[1:10]) %>%
+  ggplot()+
+  geom_point(aes(x = value, y = clo, fill = factor(subjId), size = value), 
+             alpha = 0.5, shape = 21, color = "black") +
+  scale_size(range = c(.1, 10), name = "") +
+  theme_minimal() +
+  theme(legend.position = "top") +
+  labs(y = "Clothing insulation level", 
+       x = "Value", 
+       title = "Between subject differences in Clothing insulation level") +
+  guides(fill = guide_legend(title = "subjId"))
+
+
 
 # Make factors
 c.data$subjId <- factor(c.data$subjId)
