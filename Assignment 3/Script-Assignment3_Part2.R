@@ -7,6 +7,37 @@ X <- cbind(1, as.numeric(c.data$sex == "male"))
 Z <- dummy(c.data$subjId, levelsToKeep = unique(c.data$subjId))
 y <- c.data$clo
 dim(Z)
+
+#### Mere simpel tilgang med bare at skrive density og likelihood op
+
+opt.fun <- function(theta){
+  Psi <- diag(rep(exp(theta[1]),dim(Z)[2]))
+  Sigma <- diag(rep(exp(theta[2]),length(y)))
+  
+  beta <- matrix(theta[3:4], ncol = 1)
+  
+  V <- Sigma + Z%*%Psi%*%t(Z)
+  
+  obj <-  mvtnorm::dmvnorm(y, mean = X%*%beta, sigma = V, log = T)
+
+  return(-obj)
+}
+
+par_est <- nlminb(start = c(log(0.11665),log(0.09883), 0.59176, -0.08322),
+      objective = opt.fun, control = list(trace = 1))
+sqrt(exp(par_est$par[1:2]))
+
+Psi <- diag(rep(exp(par_est$par[1]),dim(Z)[2]))
+Sigma <- diag(rep(exp(par_est$par[2]),length(y)))
+beta <- matrix(par_est$par[3:4], ncol = 1)
+
+y_adj <- y - X%*%beta
+u <- solve(t(Z)%*%solve(Sigma)%*%Z + solve(Psi)) %*% (t(Z)%*%solve(Sigma)%*%y_adj)
+cbind(ranef(fit0)$subjId, u)
+
+
+
+###### GAMMELT #####
 #Simultaneous estimation of beta and u for known variances p. 184
 beta <- solve(t(X)%*%X)%*%t(X)%*%y
 beta_old <- beta
@@ -66,23 +97,3 @@ cbind(ranef(fit0)$subjId, u)
 sqrt(unique(diag(Psi)))
 sqrt(unique(diag(Sigma)))
 fit0
-
-#### Mere simpel tilgang med bare at skrive density og likelihood op
-
-opt.fun <- function(theta){
-  Psi <- diag(rep(exp(theta[1]),dim(Z)[2]))
-  Sigma <- diag(rep(exp(theta[2]),length(y)))
-  
-  beta <- matrix(theta[3:4], ncol = 1)
-  
-  V <- Sigma + Z%*%Psi%*%t(Z)
-  
-  obj <-  mvtnorm::dmvnorm(y, mean = X%*%beta, sigma = V, log = T)
-
-  return(-obj)
-}
-
-par_est <- nlminb(start = c(log(0.11665),log(0.09883), 0.59176, -0.08322),
-      objective = opt.fun, control = list(trace = 1))
-sqrt(exp(par_est$par[1:2]))
-
