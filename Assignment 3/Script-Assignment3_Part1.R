@@ -23,7 +23,7 @@ head(clothing)
 
 unique(clothing$day)
 unique(clothing$time)
-c.data <- dplyr::select(clothing, -sex,-time2, -X, -subDay)
+c.data <- dplyr::select(clothing, -time2, -X)
 head(c.data)
 
 # Not very pretty plot
@@ -91,6 +91,7 @@ melt(c.data,id = c('subjId','clo','day'))%>%
 # Make factors
 c.data$subjId <- factor(c.data$subjId)
 c.data$day <- factor(c.data$day)
+c.data$subDay <- factor(c.data$subDay)
 str(c.data)
 
 #### ------------- Part 1: Fitting a linear mixed effect model ---------------
@@ -103,7 +104,6 @@ str(c.data)
 # Jan approved of comparing models during reduction/extension using chisq, and 
 # then testing for the model improvement with anova. In the end, we should also 
 # consider whether the random effects are significant or not.
-
 
 ## Simple lme: use ML method so we can compare models!
 fit.mm<-lme(clo~tOut+tInOp+time+day+tOut*tInOp*time*day, 
@@ -151,6 +151,7 @@ anova(fit.mm3,fit.mm4)
 
 # Final model!
 anova(fit.mm4)
+logLik(fit.mm4)
 
 # Now use REML so we can report model parameters
 fit.mm4$terms
@@ -161,7 +162,7 @@ anova(fit.mmREML)
 
 ## Forward instead
 fit.mmfw<-lme(clo~tOut,
-            random = ~1|subjId, data=c.data, method="ML")
+              random = ~1|subjId, data=c.data, method="ML")
 add1(object = fit.mmfw, scope = ~.+tInOp+time+day, test = "Chisq")
 # add day
 fit.mmfw1<-update(fit.mmfw, .~.+day)
@@ -192,7 +193,7 @@ anova(fit.mmfw4,fit.mm4)
 # The forward model is better and simpler
 
 fit.mmfwREML<-lme(clo ~ tOut + day + time + tOut:day + day:time, 
-                random = ~1|subjId, data=c.data, method="REML")
+                  random = ~1|subjId, data=c.data, method="REML")
 anova(fit.mmfwREML) # This test does also not take random effects into account.
 
 
@@ -206,10 +207,10 @@ anova(fit.mmfwREML) # This test does also not take random effects into account.
 # Use same term as fit.mm4$terms as beginning:
 # c.data$f <- with(c.data, subjId:day)
 fit.mm.nest <- lme(clo ~ tOut + tInOp + time + day + tOut:tInOp + tOut:time + tOut:day + tInOp:day + time:day + tOut:tInOp:day + tOut:time:day,
-                   random = ~1 + day|subjId,         # the effect of day can be different for each subjectID  (eller skal det v�re omvendt?)
+                   random = ~1 + day|subjId,         # the effect of day can be different for each subjectID  (eller skal det v?re omvendt?)
                    # ~ 1 | f,
                    # list(subjId = ~ 1, day = ~ 1), # specifies that subjId is nested within day
-                   data = c.data, method="ML")
+                   data = c.data, method="ML") #skal det ikke være 1|subjId/day for at det er nested?
 
 
 fit.mm.nest
@@ -269,3 +270,97 @@ logLik(fit.mm.nest5)
 logLik(fit.mm.nest6)
 anova(fit.mm.nest5,fit.mm.nest6)
 # log likelihood is lower, but we continue. p-value is big :))
+
+
+#### Part 2 ####
+library(lme4)
+fit0 <- lmer(clo~sex+(1|subjId),data=c.data,REML=FALSE)
+summary(fit0)
+
+X <- cbind(1, as.numeric(c.data$sex == "male"))
+Z <- dummy(c.data$subjId, levelsToKeep = unique(c.data$subjId))
+y <- c.data$clo
+dim(Z)
+#Simultaneous estimation of beta and u for known variances p. 184
+beta <- solve(t(X)%*%X)%*%t(X)%*%y
+beta_old <- beta
+u <- matrix(0, nrow = 47)
+u_old <- u
+
+Sigma <- diag(rep(1,length(y))); Psi <- diag(rep(1,dim(Z)[2]))
+
+iterations <- 0
+#Ved ikke om det her er rigtigt - det er som om der mangler et eller andet eller at det kan gøres smartere... 
+#Det virker dog til at få de rigtige parameter estimater
+while ((all(abs(beta - beta_old) > 1e-9) & all(abs(u - u_old) > 1e-9)) | iterations < 1){
+  
+  beta_old <- beta
+  u_old <- u
+  iterations <- iterations + 1
+  #calculate the adjusted observation
+  y_adj <- y - X%*%beta
+  #estimate u
+  
+  u <- solve(t(Z)%*%solve(Sigma)%*%Z + solve(Psi)) %*% (t(Z)%*%solve(Sigma)%*%y_adj)
+  
+  y_adj <- y - Z%*%u
+  
+  #reestimate beta
+  beta <- solve(t(X)%*%solve(Sigma)%*%X)%*%t(X)%*%solve(Sigma)%*%y_adj
+  
+  #tmp.func <- function(theta, u, e, Z, X){
+  tmp.func <- function(theta, u, e){
+    Sigma <- exp(theta[1])
+    Psi <- exp(theta[2])
+    
+    obj <- sum(dnorm(e, sd = sqrt(Sigma), log = T)) + sum(dnorm(u, sd = sqrt(Psi), log = T))
+    #Sigma <- diag(rep(exp(theta[1]),length(y))); Psi <- diag(rep(exp(theta[2]),dim(Z)[2]))
+    
+    #V <- Sigma + Z %*% Psi %*% t(Z)
+    #obj <- -0.5 * log(det(V)) - 0.5*log(det(t(X)%*%solve(V)%*%X)) - 0.5*t(e) %*% solve(V) %*% e
+    return(-obj)
+  }
+  e <- y - X%*%beta - Z%*%u
+  est <- nlminb(start = c(1,1), objective = tmp.func, u = u, e = e)
+  #est <- nlminb(start = c(-2,-1), objective = tmp.func, u = u, e = e, Z = Z, X = X)
+  
+  Sigma <- diag(rep(exp(est$par[1]),length(y)))
+  Psi <- diag(rep(exp(est$par[2]),dim(Z)[2]))
+
+  
+  if(iterations %in% c(1, 10, 100, 200, 300, 400, 600, 800, 1000, 10000)){
+    cat("\nIteration: ", iterations, " done. Update difference: ",max(abs(beta-beta_old))," \n----------------------------")
+  }
+}
+iterations
+beta-beta_old
+fit0
+beta
+cbind(ranef(fit0)$subjId, u)
+sqrt(unique(diag(Psi)))
+sqrt(unique(diag(Sigma)))
+fit0
+
+#Det herunder kører ikke rigtig
+tmp.func <- function(theta, X, Z, y){
+  
+  Sigma <- exp(theta[1])
+  Psi <-   exp(theta[2])
+  
+  beta <- matrix(theta[3:4], nrow = 2)
+  u <- matrix(theta[-c(1:4)], nrow = dim(Z)[2])
+  
+  e <- y - X%*%beta - Z%*%u
+  
+  obj <- sum(dnorm(e, sd = sqrt(Sigma), log = T)) + sum(dnorm(u, sd = sqrt(Psi), log = T))
+  return(-obj)
+}
+
+est_direct <- nlminb(start = c(0,0,0,0,rep(0,dim(Z)[2])), objective = tmp.func, X = X, Z = Z, y = y, 
+                     control = list(trace = 1))
+
+summary(fit0)
+sqrt(exp(est_direct$par[1:2]))
+est_direct$par[3:4]
+cbind(ranef(fit0)$subjId,
+      est_direct$par[-c(1:4)])
