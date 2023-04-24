@@ -71,26 +71,18 @@ fit0
 
 opt.fun <- function(theta){
   Psi <- diag(rep(exp(theta[1]),dim(Z)[2]))
-  Sigma <- diag(rep(exp(exp(theta[2])),length(y)))
+  Sigma <- diag(rep(exp(theta[2]),length(y)))
   
   beta <- matrix(theta[3:4], ncol = 1)
-  u <- matrix(theta[-c(1:4)], ncol = 1)
   
-  V <- Sigma + Z %*% Psi %*% t(Z)
+  V <- Sigma + Z%*%Psi%*%t(Z)
   
-  obj <- -1/2*log(det(V))-0.5*t(y - X%*%beta - Z%*%u) %*% solve(V) %*% (y - X%*%beta - Z%*%u)
-  
-  # fU <- function(Psi, u){
-  #   ll <- sum(log(1/(det(Psi) * exp(-0.5*t(u)%*%solve(Psi)%*%u))))
-  #   return(-ll)
-  # }
-  # 
-  # fYu <- function(beta, Sigma, u, X, Z, y){
-  #   ll <- sum(log(1/det(Sigma) * exp(t(y-X%*%beta-Z%*%u)%*%solve(Sigma)%*%(y - X%*%beta - Z%*%u))))
-  # }
-  
-  #obj <- -(fYu(beta, Sigma, u, X, Z, y) + fU(Psi, u))
-  return(obj)
+  obj <-  mvtnorm::dmvnorm(y, mean = X%*%beta, sigma = V, log = T)
+
+  return(-obj)
 }
 
-opt.fun(theta = c(log(0.11665), log(0.09883), 0.59176, -0.08322, as.vector(t(ranef(fit0)[['subjId']]))))
+par_est <- nlminb(start = c(log(0.11665),log(0.09883), 0.59176, -0.08322),
+      objective = opt.fun, control = list(trace = 1))
+sqrt(exp(par_est$par[1:2]))
+
