@@ -105,6 +105,11 @@ str(c.data)
 # then testing for the model improvement with anova. In the end, we should also 
 # consider whether the random effects are significant or not.
 
+
+# TODO: include gender too
+# make models with individual slopes. Choose the best one.
+# only use forward selection.
+
 ## Simple lme: use ML method so we can compare models!
 fit.mm<-lme(clo~tOut+tInOp+time+day+tOut*tInOp*time*day, 
             random = ~1|subjId, data=c.data, method="ML")
@@ -187,31 +192,52 @@ add1(object = fit.mmfw4, scope = ~.+tInOp+time*tOut*day, test = "Chisq")
 # stop here
 
 # final model:
-fit.mmfw4$terms
+fit.mmfw3$terms
 # compare with backward:
-anova(fit.mmfw4,fit.mm4)
+anova(fit.mmfw3,fit.mm3)
 # The forward model is better and simpler
-
-fit.mmfwREML<-lme(clo ~ tOut + day + time + tOut:day + day:time, 
+fit.mmfwREML<-lme(clo ~ tOut + day + time + tOut:day, 
                   random = ~1|subjId, data=c.data, method="REML")
+ranef()
 anova(fit.mmfwREML) # This test does also not take random effects into account.
 
+# with individual slopes
+fit.mmfw3slope<-lme(clo ~ tOut + day + time + tOut:day, 
+                  random = ~1+tOut|subjId, data=c.data, method="ML")
 
+fit.mmfw3slope<-lme(clo ~ tOut + day + time + tOut:day, 
+                    random = ~1+time|subjId, data=c.data, method="ML")
 
+fit.mmfw3slope<-lme(clo ~ tOut + day + time + tOut:day, 
+                    random = ~1+day|subjId, data=c.data, method="ML")
+
+anova(fit.mmfw3,fit.mmfw3slope)
+
+#final.model.REML1 <- model with REML
+#final.model.ML1 <- model with ML for comparison later
 
 ######### Fit a mixed effect model that include subjId and day #########
 # Effects needs to be related in order to be nested
 # In this case we should nest to subjId
 
+# Todo: Only forward selection. Compare with final model from previously
+# Tjek at det er det samme som at bruge subDay
+
 
 # Use same term as fit.mm4$terms as beginning:
 # c.data$f <- with(c.data, subjId:day)
+#fit.mm.nest <- lme(clo ~ tOut + tInOp + time + day + tOut:tInOp + tOut:time + tOut:day + tInOp:day + time:day + tOut:tInOp:day + tOut:time:day,
+#                   random = ~1 + day|subjId,         # the effect of day can be different for each subjectID  (eller skal det v?re omvendt?)
+#                   # ~ 1 | f,
+#                   # list(subjId = ~ 1, day = ~ 1), # specifies that subjId is nested within day
+#                   data = c.data, method="ML") #skal det ikke være 1|subjId/day for at det er nested?
+
 fit.mm.nest <- lme(clo ~ tOut + tInOp + time + day + tOut:tInOp + tOut:time + tOut:day + tInOp:day + time:day + tOut:tInOp:day + tOut:time:day,
-                   random = ~1 + day|subjId,         # the effect of day can be different for each subjectID  (eller skal det v?re omvendt?)
+                   random = ~1|subjId/day,         # the effect of day can be different for each subjectID  (eller skal det v?re omvendt?)
                    # ~ 1 | f,
                    # list(subjId = ~ 1, day = ~ 1), # specifies that subjId is nested within day
                    data = c.data, method="ML") #skal det ikke være 1|subjId/day for at det er nested?
-
+ranef(fit.mm.nest)
 
 fit.mm.nest
 anova(fit.mm.nest)
