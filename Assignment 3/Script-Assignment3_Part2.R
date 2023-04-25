@@ -20,12 +20,12 @@ opt.fun <- function(theta){
   V <- Sigma + Z%*%Psi%*%t(Z)
   
   obj <-  mvtnorm::dmvnorm(y, mean = X%*%beta, sigma = V, log = T)
-
+  
   return(-obj)
 }
 
 par_est <- nlminb(start = c(log(0.11665),log(0.09883), 0.59176, -0.08322),
-      objective = opt.fun, control = list(trace = 1))
+                  objective = opt.fun, control = list(trace = 1))
 sqrt(exp(par_est$par[1:2]))
 manual_fit0 <- data.frame("Parameter" = c("Psi (sigma.u)", "Sigma", "beta0", "beta1"),
                           "Interpretation" = c("SubjId", "Model Residual", "Model intercept", "Model slope (sex)"),
@@ -55,7 +55,7 @@ dim(Z)
 
 #### Mere simpel tilgang med bare at skrive density og likelihood op
 
-opt.fun <- function(theta){
+opt.fun1 <- function(theta){
   Psi <- diag(rep(exp(theta[2]),dim(Z)[2]))
   Sigma <- diag(rep(exp(theta[3]),length(y)))
   Phi <- diag(rep(exp(theta[1]),dim(W)[2]))
@@ -70,39 +70,72 @@ opt.fun <- function(theta){
 }
 
 par_est1 <- nlminb(start = c(0, 0, 0, 1, 1),
-                  objective = opt.fun, control = list(trace = 1))
+                   objective = opt.fun1, control = list(trace = 1))
 #Sammenlign med fit1
 fit1
 manual_fit1 <- data.frame("Parameter" = c("Phi (sigma.v)", "Psi (sigma.u)", "Sigma", "beta0", "beta1"),
                           "Interpretation" = c("SubjId/day", "SubjId", "Model Residual", "Model Intercept", "Model Slope (sex)"),
-                      "Estimate" = c(sqrt(exp(par_est1$par[1:3])), par_est1$par[4:5]))
+                          "Estimate" = c(sqrt(exp(par_est1$par[1:3])), par_est1$par[4:5]))
 cat("Log-likelihood = ", -par_est1$objective)
 manual_fit1
 
 #Hierarchical estimation: We first estimated Beta, Psi and Phi.
-#now we will estimate u and then the nested value v.
+#now we will estimate u and the nested value v.
 Phi <- diag(rep(exp(par_est1$par[1]),dim(W)[2]))
 Psi <- diag(rep(exp(par_est1$par[2]),dim(Z)[2]))
 Sigma <- diag(rep(exp(par_est1$par[3]),length(y)))
 beta <- matrix(par_est1$par[4:5], ncol = 1)
 
-inner_opt <- function(omega, Phi, Psi, Sigma, beta, X, y){
-  u <- matrix(omega[1:dim(Z)[2]], ncol = 1)
-  v <- matrix(omega[-c(1:dim(Z)[2])], ncol = 1)
+v <- matrix(0, nrow = dim(W)[2])
+u <- matrix(0, nrow = dim(Z)[2])
+
+v_old <- v
+u_old <- u
+iteration <- 0
+
+while(iteration == 0 | max(abs(v_old - v)) + max(abs(u_old - u)) > 1e-5){
+  iteration <- iteration + 1
+  u_old <- u
+  v_old <- v
   
+  u <- solve(t(Z)%*%solve(Sigma)%*%Z + solve(Psi), t(Z)%*%solve(Sigma)%*%(y - X%*%beta - W%*%v))
+  v <- solve(t(W)%*%solve(Sigma)%*%W + solve(Phi), t(W)%*%solve(Sigma)%*%(y - X%*%beta - Z%*%u))
+  print(iteration)
+}
+
+#### 2.3 ####
+#Implementation of sex specific variances.
+#Reasonable implementations: Domain? Which parameters?
+#Obviously estimation will be performed in the log-domain to avoid negative values
+#Parameters to be identified: Scaling factor based on gender - Same scaling factor for all variances?
+#Scaling factor alpha(sex): Assume there is a difference in variance across genders
+#e.g. clothing insulation level vary less/more for women than for men.
+
+opt.fun2 <- function(theta){
+  Psi <- diag(rep(exp(theta[2]),dim(Z)[2]))
+  Sigma <- diag(rep(exp(theta[3]),length(y)))
+  Phi <- diag(rep(exp(theta[1]),dim(W)[2]))
+  
+  beta <- matrix(theta[4:5], ncol = 1)
   
   V <- Sigma + Z%*%Psi%*%t(Z) + W%*%Phi%*%t(W)
   
-  obj <- dmvnorm(y, X%*%beta - Z%*%u - W%*%v, sigma = V, log = T)
+  obj <-  mvtnorm::dmvnorm(y, mean = X%*%beta, sigma = V, log = T)
+  
   return(-obj)
 }
 
-opt_u_and_v <- nlminb(start = rep(0, dim(W)[2]+dim(Z)[2]), objective = inner_opt,
-                      Phi = Phi, Psi = Psi, Sigma = Sigma, beta = beta, X = X, y = y,
-                      control = list(trace = 1))
+par_est2 <- nlminb(start = c(0, 0, 0, 1, 1),
+                   objective = opt.fun2, control = list(trace = 1))
+#Sammenlign med fit1
+manual_fit2 <- data.frame("Parameter" = c("Phi (sigma.v)", "Psi (sigma.u)", "Sigma", "beta0", "beta1"),
+                          "Interpretation" = c("SubjId/day", "SubjId", "Model Residual", "Model Intercept", "Model Slope (sex)"),
+                          "Estimate" = c(sqrt(exp(par_est2$par[1:3])), par_est2$par[4:5]))
+cat("Log-likelihood = ", -par_est2$objective)
+manual_fit2
 
-cbind(ranef(fit1)$subjId, opt_u_and_v$par[1:dim(Z)[2]])
-cbind(ranef(fit1)$`subjId:day`, opt_u_and_v$par[-c(1:dim(Z)[2])])
+
+
 ###### GAMMELT #####
 #Simultaneous estimation of beta and u for known variances p. 184
 beta <- solve(t(X)%*%X)%*%t(X)%*%y
