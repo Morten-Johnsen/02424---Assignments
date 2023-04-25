@@ -27,12 +27,13 @@ opt.fun <- function(theta){
 par_est <- nlminb(start = c(log(0.11665),log(0.09883), 0.59176, -0.08322),
                   objective = opt.fun, control = list(trace = 1))
 sqrt(exp(par_est$par[1:2]))
-manual_fit0 <- data.frame("Parameter" = c("Psi (sigma.u)", "Sigma", "beta0", "beta1"),
+manual_fit0 <- data.frame("Parameter" = c("Psi (Sigma.u)", "Sigma", "beta0", "beta1"),
                           "Interpretation" = c("SubjId", "Model Residual", "Model intercept", "Model slope (sex)"),
-                          "Estimate" = c(sqrt(exp(par_est$par[1:2])), par_est$par[3:4]))
+                          "Estimate" = c(exp(par_est$par[1:2]), par_est$par[3:4]))
 cat("Log-likelihood = ", -par_est$objective)
 manual_fit0
-fit0
+summary(fit0)
+
 Psi <- diag(rep(exp(par_est$par[1]),dim(Z)[2]))
 Sigma <- diag(rep(exp(par_est$par[2]),length(y)))
 beta <- matrix(par_est$par[3:4], ncol = 1)
@@ -72,10 +73,10 @@ opt.fun1 <- function(theta){
 par_est1 <- nlminb(start = c(0, 0, 0, 1, 1),
                    objective = opt.fun1, control = list(trace = 1))
 #Sammenlign med fit1
-fit1
-manual_fit1 <- data.frame("Parameter" = c("Phi (sigma.v)", "Psi (sigma.u)", "Sigma", "beta0", "beta1"),
+summary(fit1)
+manual_fit1 <- data.frame("Parameter" = c("Phi (Sigma.v)", "Psi (Sigma.u)", "Sigma", "beta0", "beta1"),
                           "Interpretation" = c("SubjId/day", "SubjId", "Model Residual", "Model Intercept", "Model Slope (sex)"),
-                          "Estimate" = c(sqrt(exp(par_est1$par[1:3])), par_est1$par[4:5]))
+                          "Estimate" = c(exp(par_est1$par[1:3]), par_est1$par[4:5]))
 cat("Log-likelihood = ", -par_est1$objective)
 manual_fit1
 
@@ -111,12 +112,30 @@ while(iteration == 0 | max(abs(v_old - v)) + max(abs(u_old - u)) > 1e-5){
 #Scaling factor alpha(sex): Assume there is a difference in variance across genders
 #e.g. clothing insulation level vary less/more for women than for men.
 
+#get the sex of each subj
+c.data %>%
+  select(subjId, sex) %>%
+  distinct() %>%
+  mutate(sex = case_when(sex == "male" ~ 1, TRUE ~ 0)) -> subjSex
+
+c.data %>%
+  select(subjId, day, sex) %>%
+  distinct() %>%
+  mutate(sex = case_when(sex == "male" ~ 1, TRUE ~ 0)) -> subjDaySex
+
+idx_Psi <- subjSex$sex
+idx_Phi <- subjDaySex$sex
+idx_Sigma <- as.numeric(c.data$sex == "male")
+
+
 opt.fun2 <- function(theta){
-  Psi <- diag(rep(exp(theta[2]),dim(Z)[2]))
-  Sigma <- diag(rep(exp(theta[3]),length(y)))
-  Phi <- diag(rep(exp(theta[1]),dim(W)[2]))
+  alpha <- theta[1] #constant effect of gender across all variances
   
-  beta <- matrix(theta[4:5], ncol = 1)
+  Psi <- diag(exp(theta[3] + idx_Psi*alpha))
+  Sigma <- diag(exp(theta[4] + idx_Sigma*alpha))
+  Phi <- diag(exp(theta[2] + idx_Phi*alpha))
+  
+  beta <- matrix(theta[5:6], ncol = 1)
   
   V <- Sigma + Z%*%Psi%*%t(Z) + W%*%Phi%*%t(W)
   
@@ -125,14 +144,20 @@ opt.fun2 <- function(theta){
   return(-obj)
 }
 
-par_est2 <- nlminb(start = c(0, 0, 0, 1, 1),
+par_est2 <- nlminb(start = c(0, 0, 0, 0, 1, 1),
                    objective = opt.fun2, control = list(trace = 1))
-#Sammenlign med fit1
-manual_fit2 <- data.frame("Parameter" = c("Phi (sigma.v)", "Psi (sigma.u)", "Sigma", "beta0", "beta1"),
-                          "Interpretation" = c("SubjId/day", "SubjId", "Model Residual", "Model Intercept", "Model Slope (sex)"),
-                          "Estimate" = c(sqrt(exp(par_est2$par[1:3])), par_est2$par[4:5]))
+
+manual_fit2 <- data.frame("Parameter" = c("alpha", "Phi (Sigma.v)", "Psi (Sigma.u)", "Sigma", "beta0", "beta1"),
+                          "Interpretation" = c("Male gender variance scaling", "SubjId/day", "SubjId", "Model Residual", "Model Intercept", "Model Slope (sex)"),
+                          "Estimate" = c(exp(par_est2$par[1:4]), par_est2$par[5:6]))
 cat("Log-likelihood = ", -par_est2$objective)
 manual_fit2
+
+#### 2.4 ####
+
+#### 2.5 ####
+
+#### 2.6 ####
 
 
 
