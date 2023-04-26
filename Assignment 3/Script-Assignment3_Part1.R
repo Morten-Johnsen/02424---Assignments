@@ -350,3 +350,7 @@ plot(final.model.ML3, resid(., type = "p") ~ fitted(.) | sex, abline = 0)
 plot(final.model.ML3, clo ~ fitted(.) | sex, abline = c(0,1))
 
 # This also shows higher variance of fitted values vs. actual values for females (than male)
+
+par(mfrow = c(2, 1))
+acf(residuals(final.model.ML3, retype="normalized"), main = "Auto-correlation for final.model.ML3 (ACF)")
+pacf(residuals(final.model.ML3, retype="normalized"), main = "Auto-correlation for final.model.ML3 (PACF)")
