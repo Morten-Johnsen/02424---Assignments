@@ -216,6 +216,8 @@ anova(fit.mmfw3,fit.mmfw3slope)
 #final.model.REML1 <- model with REML
 #final.model.ML1 <- model with ML for comparison later
 
+
+#   -----------------------------------------------------------------------
 ######### Fit a mixed effect model that include subjId and day #########
 # Effects needs to be related in order to be nested
 # In this case we should nest to subjId
@@ -224,77 +226,127 @@ anova(fit.mmfw3,fit.mmfw3slope)
 # Tjek at det er det samme som at bruge subDay
 
 
-# Use same term as fit.mm4$terms as beginning:
-# c.data$f <- with(c.data, subjId:day)
-#fit.mm.nest <- lme(clo ~ tOut + tInOp + time + day + tOut:tInOp + tOut:time + tOut:day + tInOp:day + time:day + tOut:tInOp:day + tOut:time:day,
-#                   random = ~1 + day|subjId,         # the effect of day can be different for each subjectID  (eller skal det v?re omvendt?)
-#                   # ~ 1 | f,
-#                   # list(subjId = ~ 1, day = ~ 1), # specifies that subjId is nested within day
-#                   data = c.data, method="ML") #skal det ikke være 1|subjId/day for at det er nested?
+# Use same term as fit.mm3$terms as beginning:
+# + tInOp + time + day + tOut:tInOp + tOut:time + tOut:day + tInOp:day + time:day + tOut:tInOp:day + tOut:time:day
 
-fit.mm.nest <- lme(clo ~ tOut + tInOp + time + day + tOut:tInOp + tOut:time + tOut:day + tInOp:day + time:day + tOut:tInOp:day + tOut:time:day,
-                   random = ~1|subjId/day,         # the effect of day can be different for each subjectID  (eller skal det v?re omvendt?)
-                   # ~ 1 | f,
-                   # list(subjId = ~ 1, day = ~ 1), # specifies that subjId is nested within day
-                   data = c.data, method="ML") #skal det ikke være 1|subjId/day for at det er nested?
-ranef(fit.mm.nest)
+# Forward selectiong:
+fit.mm.nest <- lme(clo ~ tOut,
+                   random = ~1|subjId/day,        
+                   data = c.data, method = "ML")
 
-fit.mm.nest
-anova(fit.mm.nest)
-drop1(fit.mm.nest, test = "Chisq") 
+add1(object = fit.mm.nest, scope = ~.+ tInOp + time + sex, test = "Chisq") # ? subDay
+# add tInOp and sex
+fit.mm.nest1 <- update(fit.mm.nest, .~.+ tInOp + sex)
+anova(fit.mmfw1, fit.mmfw) # new model is better
 
-# Drop tOut:tInOp:day
-fit.mm.nest1 <- update(fit.mm.nest, .~.-tOut:tInOp:day)
-anova(fit.mm.nest1)
-drop1(fit.mm.nest1, test = "Chisq") 
-logLik(fit.mm.nest)
-logLik(fit.mm.nest1)
-anova(fit.mm.nest,fit.mm.nest1)
-# log likelihood is lower, but we continue. p-value is big :))
+add1(object = fit.mm.nest1, scope = ~.+time + tOut + tOut*sex*time, test = "Chisq")
+# add tOut:sex
+fit.mm.nest2 <- update(fit.mm.nest1, .~.+tOut:sex)
+anova(fit.mm.nest2, fit.mm.nest1) # new model is better
 
-# Drop tOut:tInOp
-fit.mm.nest2 <- update(fit.mm.nest1, .~.-tOut:tInOp)
-anova(fit.mm.nest2)
-drop1(fit.mm.nest2, test = "Chisq") 
-logLik(fit.mm.nest1)
-logLik(fit.mm.nest2)
-anova(fit.mm.nest1,fit.mm.nest2)
-# log likelihood is smaller, but we continue. p-value is big :))
+add1(object = fit.mm.nest2, scope = ~.+tInOp*tOut*sex*time, test = "Chisq")
+# add tInOp:sex
+fit.mm.nest3 <- update(fit.mm.nest2, .~.+tInOp:sex)
+anova(fit.mm.nest3, fit.mm.nest2) # new model is better
 
-# Drop tOut:time:day
-fit.mm.nest3 <- update(fit.mm.nest2, .~.-tOut:time:day)
-anova(fit.mm.nest3)
-drop1(fit.mm.nest3, test = "Chisq") 
-logLik(fit.mm.nest2)
-logLik(fit.mm.nest3)
-anova(fit.mm.nest2,fit.mm.nest3)
-# log likelihood is lower, but we continue. p-value is big :))
-
-# Drop tOut:tInOp:time:day
-fit.mm.nest4 <- update(fit.mm.nest3, .~.-tOut:time - time:day)
-anova(fit.mm.nest4)
-drop1(fit.mm.nest4, test = "Chisq") 
-logLik(fit.mm.nest3)
-logLik(fit.mm.nest4)
-anova(fit.mm.nest3,fit.mm.nest4)
-# log likelihood is lower, but we continue. p-value is big :))
-
-# Drop tOut:tInOp:time:day
-fit.mm.nest5 <- update(fit.mm.nest4, .~.-tOut:day)
-anova(fit.mm.nest5)
-drop1(fit.mm.nest5, test = "Chisq") 
-logLik(fit.mm.nest4)
-logLik(fit.mm.nest5)
-anova(fit.mm.nest4,fit.mm.nest5)
-# log likelihood is lower, but we continue. p-value is big :))
-
-# Drop tOut:tInOp:time:day
-fit.mm.nest6 <- update(fit.mm.nest5, .~.-time)
-anova(fit.mm.nest6)
-drop1(fit.mm.nest6, test = "Chisq") 
-logLik(fit.mm.nest5)
-logLik(fit.mm.nest6)
-anova(fit.mm.nest5,fit.mm.nest6)
-# log likelihood is lower, but we continue. p-value is big :))
+add1(object = fit.mm.nest3, scope = ~.+tInOp*tOut*sex*time + I(tOut^2) + I(tInOp^2) + I(time^2), test = "Chisq")
+# Stop here!
 
 
+# final model:
+fit.mm.nest3$terms
+
+# The forward model is better and simpler
+fit.mm.nest.fwREML<-lme(clo ~ tOut + tInOp + sex + tOut*sex + tInOp*sex, 
+                        random =  ~1|subjId/day, 
+                        data = c.data, method = "REML")
+ranef(fit.mm.nest.fwREML)
+anova(fit.mm.nest.fwREML) # This test does also not take random effects into account.
+
+
+# Final models for later comparison
+final.model.REML2 <- fit.mm.nest.fwREML
+final.model.ML2 <- fit.mm.nest3
+
+
+
+# Visualise ---------------------------------------------------------------
+
+plot(final.model.ML2)
+
+coef(final.model.ML2)
+
+# Precit clothing insulation levels
+final.model.ML2$fit <- predict(final.model.ML2)
+
+# Residuals versus sex
+plot(final.model.ML2, resid(., type = "p") ~ fitted(.) | sex, abline = 0)
+
+# clothing insultaion level facetted on sex
+plot(final.model.ML2, clo ~ fitted(.) | sex, abline = c(0,1))
+
+
+### Todo:
+# Ude subDay as approximation
+
+
+#   -----------------------------------------------------------------------
+######### Fit a mixed effect model with within day auto-correlation #########
+# subjId is random effect
+# Only consider random intercept - not slope AND intercept
+
+# Forward selectiong:
+# insists that the grouping variable for the random effects and for the correlation be the same
+fit.mm.autocor <- lme(clo ~ tOut,
+                      random = ~1|subDay,
+                      correlation = corAR1(form = ~1|subDay/day),
+                      data = c.data, method = "ML")
+
+add1(object = fit.mm.autocor, scope = ~.+ tInOp + time + sex, test = "Chisq")
+# add tInOp and sex
+fit.mm.autocor1 <- update(fit.mm.autocor, .~.+ sex)
+anova(fit.mm.autocor1, fit.mm.autocor) # new model is better
+
+add1(object = fit.mm.autocor1, scope = ~.+ tInOp + time + tOut*tInOp*time*sex, test = "Chisq")
+# add tInOp and sex
+fit.mm.autocor2 <- update(fit.mm.autocor1, .~.+ tOut*sex)
+anova(fit.mm.autocor2, fit.mm.autocor1) # new model is better
+
+add1(object = fit.mm.autocor2, scope = ~.+ tInOp + time + tOut*tInOp*time*sex + I(tOut^2) + I(tInOp^2) + I(time^2), test = "Chisq")
+# Nothing more to add
+
+
+# final model:
+fit.mm.autocor2$terms
+
+# The forward model is better and simpler
+fit.mm.autocor2.fwREML<-lme(clo ~ tOut + sex + tOut*sex, 
+                           random = ~1|subDay,
+                           correlation = corAR1(form = ~1|subDay/day),
+                           data = c.data, method = "REML")
+ranef(fit.mm.autocor2.fwREML)
+anova(fit.mm.autocor2.fwREML) # This test does also not take random effects into account.
+
+
+# Final models for later comparison
+final.model.REML3 <- fit.mm.autocor2.fwREML
+final.model.ML3 <- fit.mm.autocor2
+
+
+
+# Visualise ---------------------------------------------------------------
+
+plot(final.model.ML3)
+
+coef(final.model.ML3)
+
+# Precit clothing insulation levels
+final.model.ML3$fit <- predict(final.model.ML3)
+
+# Residuals versus sex
+plot(final.model.ML3, resid(., type = "p") ~ fitted(.) | sex, abline = 0)
+
+# clothing insultaion level facetted on sex
+plot(final.model.ML3, clo ~ fitted(.) | sex, abline = c(0,1))
+
+# This also shows higher variance of fitted values vs. actual values for females (than male)
