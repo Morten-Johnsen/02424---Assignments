@@ -92,6 +92,7 @@ melt(c.data,id = c('subjId','clo','day'))%>%
 c.data$subjId <- factor(c.data$subjId)
 c.data$day <- factor(c.data$day)
 c.data$subDay <- factor(c.data$subDay)
+c.data$sex <- factor(c.data$sex)
 str(c.data)
 
 #### ------------- Part 1: Fitting a linear mixed effect model ---------------
@@ -111,110 +112,117 @@ str(c.data)
 # only use forward selection.
 
 ## Simple lme: use ML method so we can compare models!
-fit.mm<-lme(clo~tOut+tInOp+time+day+tOut*tInOp*time*day, 
-            random = ~1|subjId, data=c.data, method="ML")
-
-fit.mm
-anova(fit.mm)
-drop1(fit.mm, test = "Chisq") 
-
-# Drop tOut:tInOp:time:day
-fit.mm1 <- update(fit.mm, .~.-tOut:tInOp:time:day)
-anova(fit.mm1)
-drop1(fit.mm1, test = "Chisq") 
-logLik(fit.mm)
-logLik(fit.mm1)
-anova(fit.mm,fit.mm1)
-# log likelihood is lower, but we continue. p-value is big :))
-
-# drop tInOp:time:day
-fit.mm2 <- update(fit.mm1, .~.-tInOp:time:day)
-anova(fit.mm2)
-drop1(fit.mm2, test = "Chisq")
-logLik(fit.mm)
-logLik(fit.mm2)
-anova(fit.mm1,fit.mm2)
-# log likelihood is lower, but we continue. p-value is big :))
-
-# drop tInOp:time:day
-fit.mm3 <- update(fit.mm2, .~.-tOut:tInOp:time)
-anova(fit.mm3)
-drop1(fit.mm3, test = "Chisq")
-logLik(fit.mm)
-logLik(fit.mm3)
-anova(fit.mm2,fit.mm3)
-# log likelihood is lower, but we continue. p-value is big :))
-
-# drop tInOp:time:day
-fit.mm4 <- update(fit.mm3, .~.-tInOp:time)
-anova(fit.mm4)
-drop1(fit.mm4, test = "Chisq")
-logLik(fit.mm)
-logLik(fit.mm4)
-anova(fit.mm3,fit.mm4)
-# log likelihood is lower, but we continue. p-value is big :))
-
-# Final model!
-anova(fit.mm4)
-logLik(fit.mm4)
-
-# Now use REML so we can report model parameters
-fit.mm4$terms
-fit.mmREML<-lme(clo ~ tOut + tInOp + time + day + tOut:tInOp + tOut:time + tOut:day + 
-                  tInOp:day + time:day + tOut:tInOp:day + tOut:time:day, 
-                random = ~1|subjId, data=c.data, method="REML")
-anova(fit.mmREML)
-
-## Forward instead
+## Forward selection
 fit.mmfw<-lme(clo~tOut,
               random = ~1|subjId, data=c.data, method="ML")
-add1(object = fit.mmfw, scope = ~.+tInOp+time+day, test = "Chisq")
+add1(object = fit.mmfw, scope = ~.+tInOp+time+day+sex, test = "Chisq")
 # add day
 fit.mmfw1<-update(fit.mmfw, .~.+day)
 anova(fit.mmfw1,fit.mmfw) # new model is better
 
-add1(object = fit.mmfw1, scope = ~.+tInOp+time+day*tOut, test = "Chisq")
+add1(object = fit.mmfw1, scope = ~.+tInOp+time+sex+day*tOut, test = "Chisq")
 # add tOut:day
 fit.mmfw2<-update(fit.mmfw1, .~.+tOut:day)
 anova(fit.mmfw2,fit.mmfw1) # new model is better
 
-add1(object = fit.mmfw2, scope = ~.+tInOp+time, test = "Chisq")
-# add time
-fit.mmfw3<-update(fit.mmfw2, .~.+time)
+add1(object = fit.mmfw2, scope = ~.+tInOp+time+sex, test = "Chisq")
+# add sex
+fit.mmfw3<-update(fit.mmfw2, .~.+sex)
 anova(fit.mmfw3,fit.mmfw2) # new model is better
 
-add1(object = fit.mmfw3, scope = ~.+tInOp+time*tOut*day, test = "Chisq")
-# add day:time
-fit.mmfw4<-update(fit.mmfw3, .~.+day:time)
+add1(object = fit.mmfw3, scope = ~.+tInOp+time, test = "Chisq")
+# add time
+fit.mmfw4<-update(fit.mmfw3, .~.+time)
 anova(fit.mmfw4,fit.mmfw3) # new model is better
 
-add1(object = fit.mmfw4, scope = ~.+tInOp+time*tOut*day, test = "Chisq")
+add1(object = fit.mmfw4, scope = ~.+tInOp+day*time*tOut, test = "Chisq")
+# add tInOp
+fit.mmfw5<-update(fit.mmfw4, .~.+tInOp)
+anova(fit.mmfw5,fit.mmfw4) # new model is better
+
+add1(object = fit.mmfw5, scope = ~.+tInOp*day*time*tOut, test = "Chisq")
+
 # stop here
-
 # final model:
-fit.mmfw3$terms
-# compare with backward:
-anova(fit.mmfw3,fit.mm3)
-# The forward model is better and simpler
-fit.mmfwREML<-lme(clo ~ tOut + day + time + tOut:day, 
-                  random = ~1|subjId, data=c.data, method="REML")
-ranef()
-anova(fit.mmfwREML) # This test does also not take random effects into account.
+fit.mmfw5$terms
+summary(fit.mmfw5)
 
-# with individual slopes
-fit.mmfw3slope<-lme(clo ~ tOut + day + time + tOut:day, 
+# Make fit with individual slopes
+fit.slope1 <- lme(clo ~ tOut + day + sex + time + tInOp + tOut:day, 
                     random = ~1+tOut|subjId, data=c.data, method="ML")
 
-fit.mmfw3slope<-lme(clo ~ tOut + day + time + tOut:day, 
+fit.slope2 <- lme(clo ~ tOut + time + day + sex + tOut:day, 
                     random = ~1+time|subjId, data=c.data, method="ML")
 
-fit.mmfw3slope<-lme(clo ~ tOut + day + time + tOut:day, 
+fit.slope3 <- lme(clo ~ tOut + time + day + sex + tOut:day, 
                     random = ~1+day|subjId, data=c.data, method="ML")
 
-anova(fit.mmfw3,fit.mmfw3slope)
+fit.slope4 <- lme(clo ~ tOut + time + day + sex + tOut:day, 
+                  random = ~1+sex|subjId, data=c.data, method="ML")
 
-#final.model.REML1 <- model with REML
-#final.model.ML1 <- model with ML for comparison later
+fit.slope5 <- lme(clo ~ tOut + time + day + sex + tOut:day, 
+                  random = ~1+tInOp|subjId, data=c.data, method="ML")
+
+logLik(fit.slope1)
+logLik(fit.slope2)
+logLik(fit.slope3)
+logLik(fit.slope4)
+logLik(fit.slope5)
+# fit.slope3 wins. 
+# fit.slope1 is second. 
+
+# We build a model that has a slope on the variable day too. 
+# Build from scratch using forward selection
+fit.slopefw1 <- lme(clo ~ tOut, 
+                  random = ~1+day|subjId, data=c.data, method="ML")
+# Won't converge with day as slope!
+# Use tOut instead
+fit.slopefw1 <- lme(clo ~ 1, 
+                    random = ~1+tOut|subjId, data=c.data, method="ML")
+
+add1(object = fit.slopefw1, scope = ~.+tOut+tInOp+time+day+sex, test = "Chisq")
+# add day
+fit.slopefw2<-update(fit.slopefw1, .~.+day)
+anova(fit.slopefw1,fit.slopefw2) # new model is better
+
+add1(object = fit.slopefw2, scope = ~.+tOut+tInOp+time+sex, test = "Chisq")
+# add tOut
+fit.slopefw3<-update(fit.slopefw2, .~.+tOut)
+anova(fit.slopefw2,fit.slopefw3) # new model is better
+
+add1(object = fit.slopefw3, scope = ~.+tInOp+time+sex+tOut*day, test = "Chisq")
+# add tOut:day
+fit.slopefw4<-update(fit.slopefw3, .~.+tOut:day)
+anova(fit.slopefw3,fit.slopefw4) # new model is better
+
+add1(object = fit.slopefw4, scope = ~.+tInOp+time+sex, test = "Chisq")
+# add time
+fit.slopefw5<-update(fit.slopefw4, .~.+time)
+anova(fit.slopefw4,fit.slopefw5) # new model is better
+
+add1(object = fit.slopefw5, scope = ~.+tInOp+sex+time*day*tOut, test = "Chisq")
+# add sex
+fit.slopefw6<-update(fit.slopefw5, .~.+sex)
+anova(fit.slopefw5,fit.slopefw6) # new model is better
+
+add1(object = fit.slopefw6, scope = ~.+tInOp+time*day*tOut, test = "Chisq")
+
+# Stop here.
+# Final model with slope on random effects is fit.slopefw6. 
+# Compare with the other model:
+anova(fit.mmfw5,fit.slopefw6)
+# Model with slope is better!
+fit.slopefw6$terms
+
+final.model.ML1 <- fit.slopefw6
+
+# Fit REML model:
+final.model.REML1<-lme(clo ~ day + tOut + time + sex + day:tOut, 
+                       random = ~1+tOut|subjId, data=c.data, method="REML")
+# Look at random effects:
+ranef(final.model.REML1)
+# We can see that there is a big difference between the effect of tOut on 
+# different subjects!
 
 
 #   -----------------------------------------------------------------------
