@@ -45,38 +45,53 @@ dim(Z)
 
 #### Mere simpel tilgang med bare at skrive density og likelihood op
 ## Joint Likelihood
-inner.nll <- function(u,beta,Sigma,Psi,X,Z,y){
-  return(-mvtnorm::dmvnorm(y, mean = X%*%beta + Z%*%matrix(u, ncol = 1), sigma = Sigma, log = T)
-         -mvtnorm::dmvnorm(u, sigma = Psi, log = T))
+library(mvtnorm)
+library(numDeriv)
+inner.nll <- function(u,beta,sigma,sigma.u,X,Z,y){
+  u <- matrix(u, ncol = 1)
+  return(-sum(dnorm(y, mean = X%*%beta + Z%*%u, sd = sqrt(sigma), log = T), dnorm(u, sd = sqrt(sigma.u), log = T)))
+  # return(-dmvnorm(y, mean = X%*%beta + Z%*%u, sigma = Sigma, log = T)
+  #        -dmvnorm(t(u), sigma = Psi, log = T))
 }
 
 ## inner-outer
-grad <- function(u, beta, X, Z, Psi, Sigma, y){
+grad <- function(u, beta, X, Z, sigma.u, sigma, y){
+  Psi <- diag(rep(sigma.u,dim(Z)[2]))
+  Sigma <- diag(rep(sigma,length(y)))
   return(t(Z)%*%solve(Sigma)%*%(y - X%*%beta - Z%*%u)-solve(Psi)%*%u)
 }
 
-hess <- function(u, beta, X, Z, Psi, Sigma, y){
-  return(-t(Z)%*%solve(Sigma)%*%Z-solve(Psi))
+hess <- function(u, beta, X, Z, sigma.u, sigma, y){
+  Psi <- diag(rep(sigma.u,dim(Z)[2]))
+  Sigma <- diag(rep(sigma,length(y)))
+  return(t(Z)%*%solve(Sigma)%*%Z-solve(Psi))
 }
 
-nll <- function(theta,X,Z,y){
+nll <- function(theta, X, Z, y, save_u = F){
   beta <- matrix(theta[1:2], ncol = 1)
   sigma.u <- exp(theta[3])
   sigma <- exp(theta[4])
-  Psi <- diag(rep(sigma.u,dim(Z)[2]))
-  Sigma <- diag(rep(sigma,length(y)))
   
-  est <- nlminb(rep(0, dim(Z)[2]),objective = inner.nll, gradient = grad, hessian = hess,
-                beta=beta, Psi = Psi, Sigma=Sigma, X=X, Z = Z, y = y)
+  est <- nlminb(rep(0, dim(Z)[2]),objective = inner.nll, #gradient = grad, hessian = hess,
+                beta=beta, sigma.u=sigma.u, sigma=sigma, X=X, Z = Z, y = y)
   print(est$objective)
   u <- est$par
+  if (save_u){
+    u <<- est$par
+  }
   l.u <- est$objective
   
-  H <- diag(hess(u, beta, X, Z, Psi, Sigma, y))
+  #H <- diag(hessian(func = inner.nll, x = est$par, beta = beta, sigma = sigma, sigma.u = sigma.u, X = X, Z = Z, y = y))
+  H <- diag(hess(u, beta, X, Z, sigma.u, sigma, y))
   return(l.u - 0.5 * sum(log(abs(H/(2*pi)))))
 }
+#library(profvis)
+#profvis(nll(c(0.59176, -0.08322, log(0.1),log(0.13)), X, Z, y))
+par_est_inner_opt <- nlminb(start = c(0, 0, 0, 0), objective = nll, X = X, Z = Z, y = y, control = list(trace=1))
 
-nlminb(start = c(0.59176, -0.08322, log(0.13),log(0.1)), objective = nll, X = X, Z = Z, y = y, control = list(trace=1))
+exp(par_est_inner_opt$par[3:4])
+nll(par_est_inner_opt$par, X, Z, y, save_u = T)
+cbind(u, as.numeric(t(ranef(fit0)$subjId)))
 
 opt.fun <- function(theta){
   Psi <- diag(rep(exp(theta[1]),dim(Z)[2]))
