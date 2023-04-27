@@ -1,5 +1,39 @@
+rm(list=ls())
 ######################## Part 2 ########################
+rm(list=ls())
+
+library(reshape)
+library(tidyverse)
+library(magrittr)
+library(dplyr)
+library(ggplot2)
+library(nlme)
 library(lme4)
+
+if (Sys.getenv('USER') == "mortenjohnsen"){
+  setwd("/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 3/")
+  figpath <- "/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 3/figs/"
+}else if (Sys.getenv('USER') == "freja"){
+  setwd("~/Documents/Uni/TiendeSemester/Adv. data analysis and stat. modelling/02424---Assignments/Assignment 3")
+  figpath <- "~/Documents/Uni/TiendeSemester/Adv. data analysis and stat. modelling/02424---Assignments/Assignment 3/figs/"
+}else{
+  setwd("C:/Users/catdu/OneDrive/DTU/10. semester/Advanced Dataanalysis and Statistical Modelling/02424---Assignments/Assignment 3/")
+  figpath <- "C:/Users/catdu/OneDrive/DTU/10. semester/Advanced Dataanalysis and Statistical Modelling/02424---Assignments/Assignment 3/figs"
+}
+
+clothing <- read.csv(file = "clothingFullAss03.csv", header = T)
+head(clothing)
+
+unique(clothing$day)
+unique(clothing$time)
+c.data <- dplyr::select(clothing, -time2, -X)
+head(c.data)
+
+c.data$subjId <- factor(c.data$subjId)
+c.data$day <- factor(c.data$day)
+c.data$subDay <- factor(c.data$subDay)
+c.data$sex <- factor(c.data$sex)
+
 #### Part 2.1 ####
 fit0 <- lmer(clo~sex+(1|subjId),data=c.data,REML=FALSE)
 summary(fit0)
@@ -10,6 +44,39 @@ y <- c.data$clo
 dim(Z)
 
 #### Mere simpel tilgang med bare at skrive density og likelihood op
+## Joint Likelihood
+inner.nll <- function(u,beta,Sigma,Psi,X,Z,y){
+  return(-mvtnorm::dmvnorm(y, mean = X%*%beta + Z%*%matrix(u, ncol = 1), sigma = Sigma, log = T)
+         -mvtnorm::dmvnorm(u, sigma = Psi, log = T))
+}
+
+## inner-outer
+grad <- function(u, beta, X, Z, Psi, Sigma, y){
+  return(t(Z)%*%solve(Sigma)%*%(y - X%*%beta - Z%*%u)-solve(Psi)%*%u)
+}
+
+hess <- function(u, beta, X, Z, Psi, Sigma, y){
+  return(-t(Z)%*%solve(Sigma)%*%Z-solve(Psi))
+}
+
+nll <- function(theta,X,Z,y){
+  beta <- matrix(theta[1:2], ncol = 1)
+  sigma.u <- exp(theta[3])
+  sigma <- exp(theta[4])
+  Psi <- diag(rep(sigma.u,dim(Z)[2]))
+  Sigma <- diag(rep(sigma,length(y)))
+  
+  est <- nlminb(rep(0, dim(Z)[2]),objective = inner.nll, gradient = grad, hessian = hess,
+                beta=beta, Psi = Psi, Sigma=Sigma, X=X, Z = Z, y = y)
+  print(est$objective)
+  u <- est$par
+  l.u <- est$objective
+  
+  H <- diag(hess(u, beta, X, Z, Psi, Sigma, y))
+  return(l.u - 0.5 * sum(log(abs(H/(2*pi)))))
+}
+
+nlminb(start = c(0.59176, -0.08322, log(0.13),log(0.1)), objective = nll, X = X, Z = Z, y = y, control = list(trace=1))
 
 opt.fun <- function(theta){
   Psi <- diag(rep(exp(theta[1]),dim(Z)[2]))
@@ -19,6 +86,7 @@ opt.fun <- function(theta){
   
   V <- Sigma + Z%*%Psi%*%t(Z)
   
+  #log-likelihood of multivariate normal distribution:
   obj <-  mvtnorm::dmvnorm(y, mean = X%*%beta, sigma = V, log = T)
   
   return(-obj)
@@ -104,6 +172,8 @@ while(iteration == 0 | max(abs(v_old - v)) + max(abs(u_old - u)) > 1e-5){
   print(iteration)
 }
 
+v
+u
 #### 2.3 ####
 #Implementation of sex specific variances.
 #Reasonable implementations: Domain? Which parameters?
@@ -131,6 +201,8 @@ idx_Sigma <- as.numeric(c.data$sex == "male")
 opt.fun2 <- function(theta){
   alpha <- theta[1] #constant effect of gender across all variances
   
+  #Estimation in the exponential domain and estimate alpha as a scaling factor of the female variance
+  # -> e(theta)*e(alpha) = e(theta + alpha)
   Psi <- diag(exp(theta[3] + idx_Psi*alpha))
   Sigma <- diag(exp(theta[4] + idx_Sigma*alpha))
   Phi <- diag(exp(theta[2] + idx_Phi*alpha))
@@ -155,10 +227,13 @@ manual_fit2
 
 #### 2.4 ####
 
+
 #### 2.5 ####
 
 #### 2.6 ####
-
+fU <- function(){
+  
+}
 
 
 ###### GAMMELT #####
