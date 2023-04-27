@@ -276,6 +276,10 @@ anova(fit.mm.nest.fwREML) # This test does also not take random effects into acc
 final.model.REML2 <- fit.mm.nest.fwREML
 final.model.ML2 <- fit.mm.nest3
 
+# Compare with model from 1.2:
+
+anova(final.model.ML2,final.model.ML1)
+# Conclusion: final.model.ML2 is better
 
 
 # Visualise ---------------------------------------------------------------
@@ -305,7 +309,7 @@ plot(final.model.ML2, clo ~ fitted(.) | sex, abline = c(0,1))
 # Remember to validate which correlation term should be used. 
 # Confirm with AIC or BIC
 
-# Forward selectiong:
+# Forward selection:
 # insists that the grouping variable for the random effects and for the correlation be the same
 fit.mm.autocor <- lme(clo ~ tOut,
                       random = ~1|subDay,
