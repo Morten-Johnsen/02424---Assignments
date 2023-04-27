@@ -302,22 +302,25 @@ plot(final.model.ML2, clo ~ fitted(.) | sex, abline = c(0,1))
 ######### Fit a mixed effect model with within day auto-correlation #########
 # subjId is random effect
 # Only consider random intercept - not slope AND intercept
+# Remember to validate which correlation term should be used. 
+# Confirm with AIC or BIC
 
 # Forward selectiong:
 # insists that the grouping variable for the random effects and for the correlation be the same
 fit.mm.autocor <- lme(clo ~ tOut,
                       random = ~1|subDay,
-                      correlation = corAR1(form = ~1|subDay/day),
+                      correlation = corAR1(form = ~time|subDay),
+                        # corAR1(form = ~1|subDay/day), 
                       data = c.data, method = "ML")
 
 add1(object = fit.mm.autocor, scope = ~.+ tInOp + time + sex, test = "Chisq")
-# add tInOp and sex
-fit.mm.autocor1 <- update(fit.mm.autocor, .~.+ sex)
+# add sex
+fit.mm.autocor1 <- update(fit.mm.autocor, .~.+ sex+tInOp)
 anova(fit.mm.autocor1, fit.mm.autocor) # new model is better
 
-add1(object = fit.mm.autocor1, scope = ~.+ tInOp + time + tOut*tInOp*time*sex, test = "Chisq")
-# add tInOp and sex
-fit.mm.autocor2 <- update(fit.mm.autocor1, .~.+ tOut*sex)
+add1(object = fit.mm.autocor1, scope = ~.+  time + tOut*tInOp*time*sex, test = "Chisq")
+# add tInOp*sex
+fit.mm.autocor2 <- update(fit.mm.autocor1, .~.+ tOut*sex + sex*tInOp)
 anova(fit.mm.autocor2, fit.mm.autocor1) # new model is better
 
 add1(object = fit.mm.autocor2, scope = ~.+ tInOp + time + tOut*tInOp*time*sex + I(tOut^2) + I(tInOp^2) + I(time^2), test = "Chisq")
@@ -328,10 +331,10 @@ add1(object = fit.mm.autocor2, scope = ~.+ tInOp + time + tOut*tInOp*time*sex + 
 fit.mm.autocor2$terms
 
 # The forward model is better and simpler
-fit.mm.autocor2.fwREML<-lme(clo ~ tOut + sex + tOut*sex, 
-                           random = ~1|subDay,
-                           correlation = corAR1(form = ~1|subDay/day),
-                           data = c.data, method = "REML")
+fit.mm.autocor <- lme(clo ~ tOut,
+                      random = ~1|subDay,
+                      correlation = corAR1(form = ~time|subDay),
+                      data = c.data, method = "REML")
 ranef(fit.mm.autocor2.fwREML)
 anova(fit.mm.autocor2.fwREML) # This test does also not take random effects into account.
 
@@ -362,3 +365,6 @@ plot(final.model.ML3, clo ~ fitted(.) | sex, abline = c(0,1))
 par(mfrow = c(2, 1))
 acf(residuals(final.model.ML3, retype="normalized"), main = "Auto-correlation for final.model.ML3 (ACF)")
 pacf(residuals(final.model.ML3, retype="normalized"), main = "Auto-correlation for final.model.ML3 (PACF)")
+
+
+plot(Variogram(final.model.ML3))
