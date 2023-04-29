@@ -272,31 +272,41 @@ ranef(final.model.REML1)
 # + tInOp + time + day + tOut:tInOp + tOut:time + tOut:day + tInOp:day + time:day + tOut:tInOp:day + tOut:time:day
 
 # Forward selectiong:
-fit.mm.nest <- lme(clo ~ tOut,
+fit.mm.nest <- lme(clo ~ 1,
                    random = ~1|subjId/day,        
                    data = c.data, method = "ML")
 
-add1(object = fit.mm.nest, scope = ~.+ tInOp + time + sex, test = "Chisq") # ? subDay
-# add tInOp and sex
-fit.mm.nest1 <- update(fit.mm.nest, .~.+ tInOp + sex)
-anova(fit.mmfw1, fit.mmfw) # new model is better
+add1(object = fit.mm.nest, scope = ~.+ tOut + tInOp + time + sex, test = "Chisq") # ? subDay
+# add tOut
+fit.mm.nest1 <- update(fit.mm.nest, .~.+ tOut)
+anova(fit.mm.nest1, fit.mm.nest) # new model is better
 
-add1(object = fit.mm.nest1, scope = ~.+time + tOut + tOut*sex*time, test = "Chisq")
-# add tOut:sex
-fit.mm.nest2 <- update(fit.mm.nest1, .~.+tOut:sex)
+add1(object = fit.mm.nest1, scope = ~.+ tInOp + time + sex, test = "Chisq") # ? subDay
+# add tInOp 
+fit.mm.nest2 <- update(fit.mm.nest1, .~.+ tInOp)
 anova(fit.mm.nest2, fit.mm.nest1) # new model is better
 
-add1(object = fit.mm.nest2, scope = ~.+tInOp*tOut*sex*time, test = "Chisq")
-# add tInOp:sex
-fit.mm.nest3 <- update(fit.mm.nest2, .~.+tInOp:sex)
+add1(object = fit.mm.nest2, scope = ~.+ time + sex, test = "Chisq") # ? subDay
+# add sex
+fit.mm.nest3 <- update(fit.mm.nest2, .~.+ sex)
 anova(fit.mm.nest3, fit.mm.nest2) # new model is better
 
-add1(object = fit.mm.nest3, scope = ~.+tInOp*tOut*sex*time + I(tOut^2) + I(tInOp^2) + I(time^2), test = "Chisq")
+add1(object = fit.mm.nest3, scope = ~.+time + tOut + tOut*sex*time, test = "Chisq")
+# add tOut:sex
+fit.mm.nest4 <- update(fit.mm.nest3, .~.+tOut:sex)
+anova(fit.mm.nest4, fit.mm.nest3) # new model is better
+
+add1(object = fit.mm.nest4, scope = ~.+tInOp*tOut*sex*time, test = "Chisq")
+# add tInOp:sex
+fit.mm.nest5 <- update(fit.mm.nest4, .~.+tInOp:sex)
+anova(fit.mm.nest5, fit.mm.nest4) # new model is better
+
+add1(object = fit.mm.nest5, scope = ~.+tInOp*tOut*sex*time + I(tOut^2) + I(tInOp^2) + I(time^2), test = "Chisq")
 # Stop here!
 
 
 # final model:
-fit.mm.nest3$terms
+fit.mm.nest5$terms
 
 # The forward model is better and simpler
 fit.mm.nest.fwREML<-lme(clo ~ tOut + tInOp + sex + tOut*sex + tInOp*sex, 
@@ -308,12 +318,14 @@ anova(fit.mm.nest.fwREML) # This test does also not take random effects into acc
 
 # Final models for later comparison
 final.model.REML2 <- fit.mm.nest.fwREML
-final.model.ML2 <- fit.mm.nest3
+final.model.ML2 <- fit.mm.nest5
 
 # Compare with model from 1.2:
 
 anova(final.model.ML2,final.model.ML1)
 # Conclusion: final.model.ML2 is better
+
+summary(fit.mm.nest.fwREML)
 
 
 # Visualise ---------------------------------------------------------------
@@ -345,41 +357,46 @@ plot(final.model.ML2, clo ~ fitted(.) | sex, abline = c(0,1))
 
 # Forward selection:
 # insists that the grouping variable for the random effects and for the correlation be the same
-fit.mm.autocor <- lme(clo ~ tOut,
+fit.mm.autocor <- lme(clo ~ 1,
                       random = ~1|subDay,
                       correlation = corAR1(form = ~time|subDay),
-                        # corAR1(form = ~1|subDay/day), 
                       data = c.data, method = "ML")
 
-add1(object = fit.mm.autocor, scope = ~.+ tInOp + time + sex, test = "Chisq")
+add1(object = fit.mm.autocor, scope = ~.+ tOut + tInOp + time + sex, test = "Chisq")
 # add sex
-fit.mm.autocor1 <- update(fit.mm.autocor, .~.+ sex+tInOp)
+fit.mm.autocor1 <- update(fit.mm.autocor, .~.+ tOut)
 anova(fit.mm.autocor1, fit.mm.autocor) # new model is better
 
-add1(object = fit.mm.autocor1, scope = ~.+  time + tOut*tInOp*time*sex, test = "Chisq")
-# add tInOp*sex
-fit.mm.autocor2 <- update(fit.mm.autocor1, .~.+ tOut*sex + sex*tInOp)
+add1(object = fit.mm.autocor1, scope = ~.+ tInOp + time + sex, test = "Chisq")
+# add sex
+fit.mm.autocor2 <- update(fit.mm.autocor1, .~.+ sex)
 anova(fit.mm.autocor2, fit.mm.autocor1) # new model is better
 
-add1(object = fit.mm.autocor2, scope = ~.+ tInOp + time + tOut*tInOp*time*sex + I(tOut^2) + I(tInOp^2) + I(time^2), test = "Chisq")
+add1(object = fit.mm.autocor2, scope = ~.+  time + tInOp + tOut*tInOp*time*sex, test = "Chisq")
+# add tInOp*sex
+fit.mm.autocor3 <- update(fit.mm.autocor2, .~.+ tOut*sex) # + sex*tInOp
+anova(fit.mm.autocor3, fit.mm.autocor2) # new model is better
+
+add1(object = fit.mm.autocor3, scope = ~.+ tInOp + time + tOut*tInOp*time*sex + I(tOut^2) + I(tInOp^2) + I(time^2), test = "Chisq")
 # Nothing more to add
 
 
 # final model:
-fit.mm.autocor2$terms
+fit.mm.autocor3$terms
 
 # The forward model is better and simpler
-fit.mm.autocor <- lme(clo ~ tOut,
+fit.mm.autocor.fwREML <- lme(clo ~ tOut + sex + tOut*sex,
                       random = ~1|subDay,
                       correlation = corAR1(form = ~time|subDay),
                       data = c.data, method = "REML")
-ranef(fit.mm.autocor2.fwREML)
-anova(fit.mm.autocor2.fwREML) # This test does also not take random effects into account.
+ranef(fit.mm.autocor.fwREML)
+anova(fit.mm.autocor.fwREML) # This test does also not take random effects into account.
+summary(fit.mm.autocor.fwREML)
 
 
 # Final models for later comparison
-final.model.REML3 <- fit.mm.autocor2.fwREML
-final.model.ML3 <- fit.mm.autocor2
+final.model.REML3 <- fit.mm.autocor.fwREML
+final.model.ML3 <- fit.mm.autocor3
 
 
 
