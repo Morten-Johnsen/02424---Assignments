@@ -208,8 +208,6 @@ data.frame(uv) %>%
               names_from = day,
               values_from = uv) -> appendix_table_uv
 library(xtable)
-print(xtable(appendix_table_uv))
-
 print(xtable(appendix_table_uv, display = c("d", "d", "g", "g", "g", "g", "g")
              , type = "latex"
              , digits = 4
@@ -273,12 +271,51 @@ opt.fun2 <- function(theta){
 
 par_est2 <- nlminb(start = c(0, 0, 0, 0, 1, 1),
                    objective = opt.fun2, control = list(trace = 1))
-
+sds2 <- sqrt(diag(solve(hessian(opt.fun2, x = par_est2$par))))
 manual_fit2 <- data.frame("Parameter" = c("alpha", "Phi (Sigma.v)", "Psi (Sigma.u)", "Sigma", "beta0", "beta1"),
                           "Interpretation" = c("Male gender variance scaling", "SubjId/day", "SubjId", "Model Residual", "Model Intercept", "Model Slope (sex)"),
                           "Estimate" = c(exp(par_est2$par[1:4]), par_est2$par[5:6]))
 cat("Log-likelihood = ", -par_est2$objective)
 manual_fit2
+sds2
+
+alpha <- par_est2$par[1] #constant effect of gender across all variances
+
+#Estimation in the exponential domain and estimate alpha as a scaling factor of the female variance
+# -> e(theta)*e(alpha) = e(theta + alpha)
+Psi <- diag(exp(par_est2$par[3] + idx_Psi*alpha))
+Sigma <- diag(exp(par_est2$par[4] + idx_Sigma*alpha))
+Phi <- diag(exp(par_est2$par[2] + idx_Phi*alpha))
+
+A2 <- rbind(
+  cbind(t(Z)%*%solve(Sigma)%*%Z+solve(Psi), t(Z)%*%solve(Sigma)%*%W),
+  cbind(t(W)%*%solve(Sigma)%*%Z, t(W)%*%solve(Sigma)%*%W+solve(Phi))
+)
+B2 <- rbind(t(Z)%*%solve(Sigma)%*%(y-X%*%beta),
+           t(W)%*%solve(Sigma)%*%(y-X%*%beta))
+uv2 <- solve(A2, B2)
+
+data.frame(uv2) %>%
+  rownames_to_column(var = "SubDay") %>%
+  mutate(uv = signif(uv, digits = 4),
+         SubjectID = case_when(str_detect(SubDay, "/") ~ str_remove(SubDay, "/."), TRUE ~ SubDay),
+         day = case_when(str_detect(SubDay, "/") & str_length(SubjectID) == 1 ~ paste0("Day ", str_remove(SubDay, "./"), " [v]"),
+                         str_detect(SubDay, "/") & str_length(SubjectID) == 2 ~ paste0("Day ", str_remove(SubDay, "../"), " [v]"),
+                         TRUE ~ "Subject [u]")) %>%
+  remove_rownames() %>%
+  select(uv, SubjectID, day) %>%
+  pivot_wider(id_cols = SubjectID,
+              names_from = day,
+              values_from = uv) -> appendix_table_uv2
+library(xtable)
+print(xtable(appendix_table_uv, display = c("d", "d", "g", "g", "g", "g", "g")
+             , type = "latex"
+             , digits = 4
+             , caption = "Estimates of the latent variables, u and v, when using a gender-specific variance."
+             , label = "tab:uv_table2"),
+      file = "uv_table2.tex",
+      caption.placement = "top", include.rownames = F, hline.after = c(-1,0,0,47))
+
 
 #### 2.4 ####
 
@@ -286,6 +323,10 @@ manual_fit2
 #### 2.5 ####
 
 #### 2.6 ####
+#For this expression we do not know the marginal likelihood and instead have to approximate it by
+#using laplace approximation.
+#The inner loop is the estimation of u,v and gamma and should therefore use the joint likelihood.
+
 grad2 <- function(uv, beta, X, Z, W, sigma.u, sigma.v, sigma, y){
   #for diagnonal matrices: inverse(M) = 1/M
   u <- matrix(uv[1:dim(Z)[2]], ncol = 1)
