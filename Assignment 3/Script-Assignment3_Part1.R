@@ -59,18 +59,18 @@ p1 <- melt(c.data,id = c('subjId','clo','day'))%>%
 ggsave(filename = file.path(figpath, "subjIdDifferences.png"), plot = p1)
 
 
-p2 <- melt(c.data,id = c('subjId','clo','day'))%>%
-  filter(day == 1 & subjId %in% unique(c.data$subjId)[1:10]) %>%
-  ggplot()+
-  geom_histogram(aes(x = value, fill = factor(subjId))) +
-  # geom_point(aes(x = value, y=clo, colour = factor(subjId)))+
-  # geom_line(aes(x = value, y=clo, colour = factor(subjId), linetype = factor(day)), show.legend = FALSE)+
-  facet_wrap(~subjId, scales = "free")+
-  theme_bw()+
-  labs(colour = "SubjectID:", y = "Clothing insulation level", x = "Value")+
-  theme(legend.position = "top")+
-  ggtitle("Between subject differences in Clothing insulation level")
-p2
+# p2 <- melt(c.data,id = c('subjId','clo','day'))%>%
+#   filter(day == 1 & subjId %in% unique(c.data$subjId)[1:10]) %>%
+#   ggplot()+
+#   geom_histogram(aes(x = value, fill = factor(subjId))) +
+#   # geom_point(aes(x = value, y=clo, colour = factor(subjId)))+
+#   # geom_line(aes(x = value, y=clo, colour = factor(subjId), linetype = factor(day)), show.legend = FALSE)+
+#   facet_wrap(~subjId, scales = "free")+
+#   theme_bw()+
+#   labs(colour = "SubjectID:", y = "Clothing insulation level", x = "Value")+
+#   theme(legend.position = "top")+
+#   ggtitle("Between subject differences in Clothing insulation level")
+# p2
 
 
 melt(c.data,id = c('subjId','clo','day'))%>%
@@ -107,14 +107,17 @@ str(c.data)
 # consider whether the random effects are significant or not.
 
 
-# TODO: include gender too
 # make models with individual slopes. Choose the best one.
 # only use forward selection.
 
 ## Simple lme: use ML method so we can compare models!
+fit.mmfw0<-lme(clo~1,
+              random = ~1|subjId, data=c.data, method="ML")
+add1(object = fit.mmfw0, scope = ~.+tOut+ tInOp+time+day+sex, test = "Chisq")
 ## Forward selection
 fit.mmfw<-lme(clo~tOut,
               random = ~1|subjId, data=c.data, method="ML")
+anova(fit.mmfw,fit.mmfw0)
 add1(object = fit.mmfw, scope = ~.+tInOp+time+day+sex, test = "Chisq")
 # add day
 fit.mmfw1<-update(fit.mmfw, .~.+day)
@@ -145,7 +148,12 @@ add1(object = fit.mmfw5, scope = ~.+tInOp*day*time*tOut, test = "Chisq")
 # stop here
 # final model:
 fit.mmfw5$terms
-summary(fit.mmfw5)
+fit.mmfw5reml<-lme(clo ~ tOut + day + sex + time + tInOp + tOut:day,
+               random = ~1|subjId, data=c.data, method="REML")
+summary(fit.mmfw5reml)
+tmp <- round(ranef(fit.mmfw5reml),3)
+tmp$`(Intercept)`
+
 
 # Make fit with individual slopes
 fit.slope1 <- lme(clo ~ tOut + day + sex + time + tInOp + tOut:day, 
@@ -214,13 +222,15 @@ anova(fit.mmfw5,fit.slopefw6)
 # Model with slope is better!
 fit.slopefw6$terms
 
+
 final.model.ML1 <- fit.slopefw6
 
 # Fit REML model:
 final.model.REML1<-lme(clo ~ day + tOut + time + sex + day:tOut, 
                        random = ~1+tOut|subjId, data=c.data, method="REML")
+summary(final.model.REML1)
 # Look at random effects:
-ranef(final.model.REML1)
+round(ranef(final.model.REML1),3)
 # We can see that there is a big difference between the effect of tOut on 
 # different subjects!
 
