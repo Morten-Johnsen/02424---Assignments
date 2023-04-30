@@ -307,45 +307,32 @@ anova(fit.mm.nest2, fit.mm.nest1) # new model is better
 
 add1(object = fit.mm.nest2, scope = ~.+ time + tOut + tInOp*sex, test = "Chisq") # ? subDay
 # add tInOp:sex
-fit.mm.nest3 <- update(fit.mm.nest2, .~.+ sex)
+fit.mm.nest3 <- update(fit.mm.nest2, .~.+ tInOp:sex)
 anova(fit.mm.nest3, fit.mm.nest2) # new model is better
 
-add1(object = fit.mm.nest3, scope = ~.+time + tOut + tOut*sex*time, test = "Chisq")
-# add tOut:sex
-fit.mm.nest4 <- update(fit.mm.nest3, .~.+tOut:sex)
-anova(fit.mm.nest4, fit.mm.nest3) # new model is better
-
-add1(object = fit.mm.nest4, scope = ~.+tInOp*tOut*sex*time, test = "Chisq")
-# add tInOp:sex
-fit.mm.nest5 <- update(fit.mm.nest4, .~.+tInOp:sex)
-anova(fit.mm.nest5, fit.mm.nest4) # new model is better
-
-add1(object = fit.mm.nest5, scope = ~.+tInOp*tOut*sex*time + I(tOut^2) + I(tInOp^2) + I(time^2), test = "Chisq")
+add1(object = fit.mm.nest3, scope = ~.+time + tOut , test = "Chisq")
 # Stop here!
 
-
 # final model:
-fit.mm.nest5$terms
+fit.mm.nest3$terms
 
 # The forward model is better and simpler
-fit.mm.nest.fwREML<-lme(clo ~ tOut + tInOp + sex + tOut*sex + tInOp*sex, 
+fit.mm.nest.fwREML<-lme(clo ~ tInOp + sex + tInOp:sex, 
                         random =  ~1|subjId/day, 
                         data = c.data, method = "REML")
 ranef(fit.mm.nest.fwREML)
 anova(fit.mm.nest.fwREML) # This test does also not take random effects into account.
+summary(fit.mm.nest.fwREML)
 
 
 # Final models for later comparison
 final.model.REML2 <- fit.mm.nest.fwREML
-final.model.ML2 <- fit.mm.nest5
+final.model.ML2 <- fit.mm.nest3
 
 # Compare with model from 1.2:
 
 anova(final.model.ML2,final.model.ML1)
 # Conclusion: final.model.ML2 is better
-
-summary(fit.mm.nest.fwREML)
-
 
 # Visualise ---------------------------------------------------------------
 
@@ -382,7 +369,7 @@ fit.mm.autocor <- lme(clo ~ 1,
                       data = c.data, method = "ML")
 
 add1(object = fit.mm.autocor, scope = ~.+ tOut + tInOp + time + sex, test = "Chisq")
-# add sex
+# add tOut
 fit.mm.autocor1 <- update(fit.mm.autocor, .~.+ tOut)
 anova(fit.mm.autocor1, fit.mm.autocor) # new model is better
 
@@ -392,7 +379,7 @@ fit.mm.autocor2 <- update(fit.mm.autocor1, .~.+ sex)
 anova(fit.mm.autocor2, fit.mm.autocor1) # new model is better
 
 add1(object = fit.mm.autocor2, scope = ~.+  time + tInOp + tOut*tInOp*time*sex, test = "Chisq")
-# add tInOp*sex
+# add tOut*sex
 fit.mm.autocor3 <- update(fit.mm.autocor2, .~.+ tOut*sex) # + sex*tInOp
 anova(fit.mm.autocor3, fit.mm.autocor2) # new model is better
 
@@ -412,11 +399,34 @@ ranef(fit.mm.autocor.fwREML)
 anova(fit.mm.autocor.fwREML) # This test does also not take random effects into account.
 summary(fit.mm.autocor.fwREML)
 
-
 # Final models for later comparison
 final.model.REML3 <- fit.mm.autocor.fwREML
 final.model.ML3 <- fit.mm.autocor3
 
+# For interpretation:
+subID_interp=12
+ranef.data = data.frame(ranef(fit.mm.autocor.fwREML),subDay = 0:135)
+c.data.ranef = merge(c.data,ranef.data,by = "subDay")
+
+c.data.ranef[c.data.ranef$subjId == subID_interp,]
+
+samefit_wo_AR <- lme(clo ~ tOut + sex + tOut*sex,
+                             random = ~1|subDay,
+                             data = c.data, method = "REML")
+ranef.data_wo_AR = data.frame(ranef(samefit_wo_AR),subDay = 0:135)
+c.data.ranef_wo_AR = merge(c.data.ranef,ranef.data_wo_AR,by = "subDay")
+
+c.data.ranef_wo_AR[c.data.ranef_wo_AR$subjId == subID_interp,]
+
+samefit_wo_ARML <- lme(clo ~ tOut + sex + tOut*sex,
+                     random = ~1|subDay,
+                     data = c.data, method = "ML")
+anova(final.model.ML3,samefit_wo_ARML)
+
+
+# COMPARE ALL THREE MODELS: -----------------------------------------------------
+anova(final.model.ML1,final.model.ML2)
+anova(final.model.ML2,final.model.ML3)
 
 
 # Visualise ---------------------------------------------------------------
