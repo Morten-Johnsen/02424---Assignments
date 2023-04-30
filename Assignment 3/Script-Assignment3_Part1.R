@@ -375,32 +375,3 @@ ggsave(filename = file.path(figpath, "predictVSactual1.png"), plot = ML1)
 ggsave(filename = file.path(figpath, "predictVSactual2.png"), plot = ML2)
 ggsave(filename = file.path(figpath, "predictVSactual3.png"), plot = ML3)
 
-
-
-# Prediction of clothing insulation level
-pred<-predict(final.model.ML3, type= "response" , 
-              newdata=data.frame(subjId = c(48, 49, 50), 
-                                 subDay = c(0, 1, 1), 
-                                 tOut = c(17, 17, 20), 
-                                 day = c(1, 1, 2),
-                                 sex = as.factor(c("male", "female", "male"))),
-              se=TRUE)
-pred[1:3]
-
-
-
-# Maybe just delete the following - or modify it
-bob <-data.frame(subDay = c(0, 1, 1, 3, 2), 
-                 tOut = c(17, 17, 20, 19, 21), 
-                 day = c(1, 1, 2, 1, 1),
-                 sex = as.factor(c("male", "female", "male", "female", "male")))
-
-# Predict clo first
-predicted_values<- modelr::data_grid(c.data, bob) %>% 
-  modelr::add_predictions(final.model.ML3)
-
-
-predicted_values %>% 
-  ggplot(aes(tOut, pred))+
-  geom_point(data = c.data, aes(as.numeric(tOut), as.numeric(clo), color = as.factor(sex)))
-
