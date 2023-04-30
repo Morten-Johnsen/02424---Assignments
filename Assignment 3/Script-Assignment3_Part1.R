@@ -323,6 +323,12 @@ anova(final.model.ML3,samefit_wo_ARML)
 anova(final.model.ML1,final.model.ML2)
 anova(final.model.ML2,final.model.ML3)
 
+# forestmodel::forest_model(final.model.ML1, final.model.ML2, final.model.ML3)
+AIC(final.model.ML1)
+AIC(final.model.ML2)
+AIC(final.model.ML3)
+# AIC is lowest for the last model with autocorrelation
+
 
 # Visualise ---------------------------------------------------------------
 
@@ -341,9 +347,34 @@ plot(final.model.ML3, clo ~ fitted(.) | sex, abline = c(0,1))
 
 # This also shows higher variance of fitted values vs. actual values for females (than male)
 
-par(mfrow = c(2, 1))
+par(mfrow = c(1, 1))
 acf(residuals(final.model.ML3, retype="normalized"), main = "Auto-correlation for final.model.ML3 (ACF)")
 pacf(residuals(final.model.ML3, retype="normalized"), main = "Auto-correlation for final.model.ML3 (PACF)")
 
 
-plot(Variogram(final.model.ML3))
+
+
+# Predicted versus actual -------------------------------------------------
+ML3 <- ggplot(c.data, aes(x = predict(final.model.ML3), y = clo)) +
+  geom_smooth(method = "lm") +
+  geom_point() +
+  labs(x='Predicted Values', y='Actual Values', title='Predicted vs. Actual Values', subtitle = "With within day auto-correlation") +
+  theme_minimal() 
+ML2 <- ggplot(c.data, aes(x = predict(final.model.ML2), y = clo)) +
+  geom_smooth(method = "lm") +
+  geom_point() +
+  labs(x='Predicted Values', y='Actual Values', title='Predicted vs. Actual Values', subtitle = "With subjId and day as random effects") +
+  theme_minimal() 
+ML1 <- ggplot(c.data, aes(x = predict(final.model.ML1), y = clo)) +
+  geom_smooth(method = "lm") +
+  geom_point() +
+  labs(x='Predicted Values', y='Actual Values', title='Predicted vs. Actual Values', subtitle = "With subjId as random effects") +
+  theme_minimal() 
+
+ggsave(filename = file.path(figpath, "predictVSactual1.png"), plot = ML1)
+ggsave(filename = file.path(figpath, "predictVSactual2.png"), plot = ML2)
+ggsave(filename = file.path(figpath, "predictVSactual3.png"), plot = ML3)
+
+
+
+
