@@ -6,6 +6,9 @@ library(magrittr)
 library(dplyr)
 library(ggplot2)
 library(nlme)
+library(gridExtra)
+library(grid)
+library(lattice)
 
 if (Sys.getenv('USER') == "mortenjohnsen"){
   setwd("/Users/mortenjohnsen/OneDrive - Danmarks Tekniske Universitet/DTU/10. Semester/02424 - Advanced Dataanalysis and Statistical Modellling/02424---Assignments/Assignment 3/")
@@ -284,10 +287,6 @@ round(ranef(final.model.REML1),3)
 # Effects needs to be related in order to be nested
 # In this case we should nest to subjId
 
-# Todo: Only forward selection. Compare with final model from previously
-# Tjek at det er det samme som at bruge subDay
-
-
 # Use same term as fit.mm3$terms as beginning:
 # + tInOp + time + day + tOut:tInOp + tOut:time + tOut:day + tInOp:day + time:day + tOut:tInOp:day + tOut:time:day
 
@@ -297,17 +296,17 @@ fit.mm.nest <- lme(clo ~ 1,
                    data = c.data, method = "ML")
 
 add1(object = fit.mm.nest, scope = ~.+ tOut + tInOp + time + sex, test = "Chisq") # ? subDay
-# add tOut
-fit.mm.nest1 <- update(fit.mm.nest, .~.+ tOut)
+# add tInOp
+fit.mm.nest1 <- update(fit.mm.nest, .~.+ tInOp)
 anova(fit.mm.nest1, fit.mm.nest) # new model is better
 
-add1(object = fit.mm.nest1, scope = ~.+ tInOp + time + sex, test = "Chisq") # ? subDay
-# add tInOp 
-fit.mm.nest2 <- update(fit.mm.nest1, .~.+ tInOp)
+add1(object = fit.mm.nest1, scope = ~.+ tOut + time + sex, test = "Chisq") # ? subDay
+# add sex 
+fit.mm.nest2 <- update(fit.mm.nest1, .~.+ sex)
 anova(fit.mm.nest2, fit.mm.nest1) # new model is better
 
-add1(object = fit.mm.nest2, scope = ~.+ time + sex, test = "Chisq") # ? subDay
-# add sex
+add1(object = fit.mm.nest2, scope = ~.+ time + tOut + tInOp*sex, test = "Chisq") # ? subDay
+# add tInOp:sex
 fit.mm.nest3 <- update(fit.mm.nest2, .~.+ sex)
 anova(fit.mm.nest3, fit.mm.nest2) # new model is better
 
