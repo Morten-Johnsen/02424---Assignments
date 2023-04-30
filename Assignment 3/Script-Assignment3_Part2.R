@@ -282,6 +282,7 @@ alpha <- par_est2$par[1] #constant effect of gender across all variances
 
 #Estimation in the exponential domain and estimate alpha as a scaling factor of the female variance
 # -> e(theta)*e(alpha) = e(theta + alpha)
+beta <- matrix(par_est2$par[5:6], ncol = 1)
 Psi <- diag(exp(par_est2$par[3] + idx_Psi*alpha))
 Sigma <- diag(exp(par_est2$par[4] + idx_Sigma*alpha))
 Phi <- diag(exp(par_est2$par[2] + idx_Phi*alpha))
@@ -307,7 +308,7 @@ data.frame(uv2) %>%
               names_from = day,
               values_from = uv) -> appendix_table_uv2
 library(xtable)
-print(xtable(appendix_table_uv, display = c("d", "d", "g", "g", "g", "g", "g")
+print(xtable(appendix_table_uv2, display = c("d", "d", "g", "g", "g", "g", "g")
              , type = "latex"
              , digits = 4
              , caption = "Estimates of the latent variables, u and v, when using a gender-specific variance."
@@ -315,7 +316,7 @@ print(xtable(appendix_table_uv, display = c("d", "d", "g", "g", "g", "g", "g")
       file = "uv_table2.tex",
       caption.placement = "top", include.rownames = F, hline.after = c(-1,0,0,47))
 
-
+uv_opt0 <- uv2
 #### 2.4 ####
 
 
@@ -326,24 +327,29 @@ print(xtable(appendix_table_uv, display = c("d", "d", "g", "g", "g", "g", "g")
 #using laplace approximation.
 #The inner loop is the estimation of u,v and gamma and should therefore use the joint likelihood.
 
-grad2 <- function(uv, beta, X, Z, W, sigma.u, sigma.v, sigma, y){
-  #for diagnonal matrices: inverse(M) = 1/M
-  u <- matrix(uv[1:dim(Z)[2]], ncol = 1)
-  v <- matrix(uv[-c(1:dim(Z)[2])], ncol = 1)
-  invPsi <-   diag(rep(1/sigma.u,dim(Z)[2]))
-  invPhi <-   diag(rep(1/sigma.v,dim(W)[2]))
-  invSigma <- diag(rep(1/sigma,length(y)))
+grad2 <- function(uv, beta, sigma, sigma.u, sigma.v, X, Z, W, y){
+  #for diagonal matrices: inverse(M) = 1/M
+  u_length <- dim(Z)[2]
+  u <- matrix(uv[1:u_length], ncol = 1)
+  v <- matrix(uv[-c(1:u_length)], ncol = 1)
+  invPsi <-   diag(1/sigma.u, nrow = u_length, ncol = u_length)
+  invPhi <-   diag(1/sigma.v, nrow = dim(W)[2], ncol = dim(W)[2])
+  invSigma <- diag(1/sigma, nrow = length(y), ncol = length(y))
+  
   e <- y - X%*%beta - Z%*%u - W%*%v
-  return(c(t(Z)%*%invSigma%*%e-invPsi%*%u, t(W)%*%invSigma%*%e-invPhi%*%v))
+  invSigma_x_e <- invSigma%*%e
+  gradient <- matrix(c(t(Z)%*%invSigma_x_e-invPsi%*%u, t(W)%*%invSigma_x_e-invPhi%*%v), ncol = 1)
+  return(-gradient)
 }
 
-hess2 <- function(uv, beta, sigma.u, sigma.v, sigma, X, Z, W, y){
-  #for diagnonal matrices: inverse(M) = 1/M
-  u <- matrix(uv[1:dim(Z)[2]], ncol = 1)
-  v <- matrix(uv[-c(1:dim(Z)[2])], ncol = 1)
-  invPsi <-   diag(rep(1/sigma.u,dim(Z)[2]))
-  invPhi <-   diag(rep(1/sigma.v,dim(W)[2]))
-  invSigma <- diag(rep(1/sigma,length(y)))
+hess2 <- function(uv, beta, sigma, sigma.u, sigma.v, X, Z, W, y){
+  #for diagonal matrices: inverse(M) = 1/M
+  u_length <- dim(Z)[2]
+  u <- matrix(uv[1:u_length], ncol = 1)
+  v <- matrix(uv[-c(1:u_length)], ncol = 1)
+  invPsi <-   diag(1/sigma.u, nrow = u_length, ncol = u_length)
+  invPhi <-   diag(1/sigma.v, nrow = dim(W)[2], ncol = dim(W)[2])
+  invSigma <- diag(1/sigma, nrow = length(y), ncol = length(y))
   
   #Save one matrix multiplication pr. run
   tWinvSigma <- t(W)%*%invSigma
@@ -357,18 +363,19 @@ hess2 <- function(uv, beta, sigma.u, sigma.v, sigma, X, Z, W, y){
   
   hessian <- rbind(cbind(luu, luv),
                    cbind(lvu, lvv))
-  
-  return(hessian)
+  return(-hessian)
 }
 
-inner.nll2 <- function(uv, beta, sigma, sigma.u, sigma.v, X, Z, W, y){
-  u <- matrix(uv[1:dim(Z)[2]], ncol = 1)
-  v <- matrix(uv[-c(1:dim(Z)[2])], ncol = 1)
-  return(-sum(dnorm(y - (X%*%beta + Z%*%u + W%*%v), sd = sigma, log = T), 
-              dnorm(u, sd = sigma.u, log = T),
-              dnorm(v, sd = sigma.v, log = T)))
-  # return(-dmvnorm(y, mean = X%*%beta + Z%*%u, sigma = Sigma, log = T)
-  #        -dmvnorm(t(u), sigma = Psi, log = T))
+library(msos)
+joint.likelihood <- function(uv, beta, sigma, sigma.u, sigma.v, X, Z, W, y){
+  u_length <- dim(Z)[2]
+  u <- matrix(uv[1:u_length], ncol = 1)
+  v <- matrix(uv[-c(1:u_length)], ncol = 1)
+
+  jll <- sum(dnorm(y, mean = X%*%beta + Z%*%u + W%*%v, sd = sqrt(sigma), log = T)) +
+                           sum(dnorm(as.numeric(u), sd = sqrt(sigma.u), log = T)) + 
+                           sum(dnorm(as.numeric(v), sd = sqrt(sigma.v), log = T))
+  return(-jll)
 }
 
 nll2 <- function(theta, X, Z, W, y, save_u = F){
@@ -377,29 +384,43 @@ nll2 <- function(theta, X, Z, W, y, save_u = F){
   sigma.v <- exp(theta[4])
   sigma <- exp(theta[5])
   
-  est <- nlminb(rep(0, (dim(Z)[2]+dim(W)[2])),
-                objective = inner.nll2, 
-                gradient = grad2, 
-                hessian = hess2,
-                beta=beta, sigma=sigma, sigma.u=sigma.u, sigma.v=sigma.v, X=X, Z=Z, W=W, y = y)
-  print(est$objective)
-
-  if (save_u){
-    #Define u and v globally
-    u <<- est$par[1:dim(Z)[2]]
-    v <<- est$par[-c(1:dim(Z)[2])]
-  }
-  l.u <- est$objective
+  Psi <-   diag(rep(sigma.u,dim(Z)[2]))
+  Phi <-   diag(rep(sigma.v,dim(W)[2]))
+  Sigma <- diag(rep(sigma,length(y)))
   
-  #H <- diag(hessian(func = inner.nll2, x = est$par, beta = beta, 
-                    # sigma = sigma, sigma.u = sigma.u, sigma.v = sigma.v, 
-                    # X = X, Z = Z, W = W, y = y))
-  H <- diag(hess2(est$par, beta, sigma, sigma.u, sigma.v, X, Z, W, y))
-  return(l.u - 0.5) #* fix den her beregning? log(prod(diag(H/(2*pi)))))
+  est <- nlminb(start = rep(0, dim(Z)[2]+dim(W)[2]), objective = joint.likelihood,
+                beta = beta, sigma = sigma, sigma.u = sigma.u, sigma.v = sigma.v,
+                X =X, Z = Z, W = W, y = y)
+                # gradient = grad2,
+                # hessian = hess2)
+  uv <- est$par
+  l.u <- est$objective
+  #Faster solution: Find the optimal solution based on solving a system of equations (have to know the hessian)
+  # A2 <- rbind(
+  #   cbind(t(Z)%*%solve(Sigma)%*%Z+solve(Psi), t(Z)%*%solve(Sigma)%*%W),
+  #   cbind(t(W)%*%solve(Sigma)%*%Z, t(W)%*%solve(Sigma)%*%W+solve(Phi))
+  # )
+  # B2 <- rbind(t(Z)%*%solve(Sigma)%*%(y-X%*%beta),
+  #             t(W)%*%solve(Sigma)%*%(y-X%*%beta))
+  # uv2 <- solve(A2, B2)
+  # u <- uv2[1:dim(Z)[2]]
+  # v <- uv2[-c(1:dim(Z)[2])]
+  
+  #evaluate the joint likelihood of this solution
+  # l.u <- -(mvtnorm::dmvnorm(y, mean = X%*%beta + Z%*%u + W%*%v, sigma = Sigma, log = T) +
+  #            mvtnorm::dmvnorm(as.numeric(u), sigma = Psi, log = T) +
+  #            mvtnorm::dmvnorm(as.numeric(v), sigma = Phi, log = T))
+  
+  #Return the NEGATIVE hessian according to the section between 5.100 and 5.101 p. 201
+  H <- -hess2(uv, beta = beta, sigma = sigma, sigma.u = sigma.u, sigma.v = sigma.v, 
+              X = X, Z = Z, W = W, y = y)
+  #return negative log likelihood (and thus + 0.5log(prod....))
+  return(l.u + 0.5*logdet(H/(2*pi)))
 }
-#library(profvis)
-profvis(nll2(c(0.59242, -0.08439, log(.09730),log(.10395), log(.05597)), X, Z, W, y))
-par_est_inner_opt2 <- nlminb(start = c(0.59242, -0.08439, log(.09730),log(.10395), log(.05597)), 
+library(profvis)
+profvis(nll2(theta = c(0.59242, -0.08439, log(.09730^2),log(.10395^2), log(.05597^2)),
+             X = X, Z = Z, W = W, y = y))
+par_est_inner_opt2 <- nlminb(start = c(0.59242, -0.08439, log(.09730^2),log(.10395^2), log(.05597^2)), 
                              objective = nll2, 
                              X = X, Z = Z, W = W, y = y, 
                              control = list(trace=1))
@@ -407,63 +428,6 @@ par_est_inner_opt2 <- nlminb(start = c(0.59242, -0.08439, log(.09730),log(.10395
 sqrt(exp(par_est_inner_opt2$par[3:5]))
 exp(par_est2$par[1:3])
 
-###### GAMMELT #####
-#Simultaneous estimation of beta and u for known variances p. 184
-beta <- solve(t(X)%*%X)%*%t(X)%*%y
-beta_old <- beta
-u <- matrix(0, nrow = 47)
-u_old <- u
-
-Sigma <- diag(rep(1,length(y))); Psi <- diag(rep(1,dim(Z)[2]))
-
-iterations <- 0
-#Ved ikke om det her er rigtigt - det er som om der mangler et eller andet eller at det kan gøres smartere... 
-#Det virker dog til at få de rigtige parameter estimater
-while ((all(abs(beta - beta_old) > 1e-9) & all(abs(u - u_old) > 1e-9)) | iterations < 1){
-  
-  beta_old <- beta
-  u_old <- u
-  iterations <- iterations + 1
-  #calculate the adjusted observation
-  y_adj <- y - X%*%beta
-  #estimate u
-  
-  u <- solve(t(Z)%*%solve(Sigma)%*%Z + solve(Psi)) %*% (t(Z)%*%solve(Sigma)%*%y_adj)
-  
-  y_adj <- y - Z%*%u
-  
-  #reestimate beta
-  beta <- solve(t(X)%*%solve(Sigma)%*%X)%*%t(X)%*%solve(Sigma)%*%y_adj
-  
-  #tmp.func <- function(theta, u, e, Z, X){
-  tmp.func <- function(theta, u, e){
-    Sigma <- exp(theta[1])
-    Psi <- exp(theta[2])
-    
-    obj <- sum(dnorm(e, sd = sqrt(Sigma), log = T)) + sum(dnorm(u, sd = sqrt(Psi), log = T))
-    #Sigma <- diag(rep(exp(theta[1]),length(y))); Psi <- diag(rep(exp(theta[2]),dim(Z)[2]))
-    
-    #V <- Sigma + Z %*% Psi %*% t(Z)
-    #obj <- -0.5 * log(det(V)) - 0.5*log(det(t(X)%*%solve(V)%*%X)) - 0.5*t(e) %*% solve(V) %*% e
-    return(-obj)
-  }
-  e <- y - X%*%beta - Z%*%u
-  est <- nlminb(start = c(1,1), objective = tmp.func, u = u, e = e)
-  #est <- nlminb(start = c(-2,-1), objective = tmp.func, u = u, e = e, Z = Z, X = X)
-  
-  Sigma <- diag(rep(exp(est$par[1]),length(y)))
-  Psi <- diag(rep(exp(est$par[2]),dim(Z)[2]))
-  
-  
-  if(iterations %in% c(1, 10, 100, 200, 300, 400, 600, 800, 1000, 10000)){
-    cat("\nIteration: ", iterations, " done. Update difference: ",max(abs(beta-beta_old))," \n----------------------------")
-  }
-}
-iterations
-beta-beta_old
-fit0
-beta
-cbind(ranef(fit0)$subjId, u)
-sqrt(unique(diag(Psi)))
-sqrt(unique(diag(Sigma)))
-fit0
+hessian(func = joint.likelihood, x = c(0.59242, -0.08439, log(.09730^2),log(.10395^2), log(.05597^2)),
+                                beta, sigma, sigma.u, sigma.v, X, Z, W, y)
+        
