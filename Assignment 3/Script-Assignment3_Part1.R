@@ -403,34 +403,14 @@ newdat$SE <- sqrt(predvar)
 newdat$SE2 <- sqrt(predvar+final.model.ML3$sigma^2)
 
 
-p1 <- ggplot(newdat,aes(x=tOut,y=pred)) + 
-  geom_line() +
-  geom_ribbon(aes(ymin=pred-2*SE2,ymax=pred+2*SE2),alpha=0.2,fill="red") +
-  geom_ribbon(aes(ymin=pred-2*SE,ymax=pred+2*SE),alpha=0.2,fill="blue") +
-  geom_point(data=c.data,aes(x=tOut,y=clo)) +
-  scale_y_continuous("Clothing insulation level") +
-  facet_wrap(vars(sex))
-p1
-
-# Another prediction interval plot
-ggpredict(final.model.ML3, "tOut", type = "re") %>% plot(rawdata = T, dot.alpha = 0.2)
+c.data$pred <- predict(final.model.ML3)
+ggplot(c.data,aes(x=clo,y=pred)) + 
+  geom_point() +
+  geom_ribbon(aes(ymin=pred-2*newdat$SE2,ymax=pred+2*newdat$SE2),alpha=0.2,fill="red") +
+  geom_ribbon(aes(ymin=pred-2*newdat$SE,ymax=pred+2*newdat$SE),alpha=0.2,fill="blue") +
+  labs(x='Actual Values', y='Predicted Values', title='Predicted vs. Actual Values of Clothing Insulation Level',
+       subtitle = "Within day auto-correlation") +
+  theme_minimal()
 
 
-# fixedEf.interval <- intervals(final.model.ML3, which = "fixed")$fixed
-# fixedEf.interval <- data.frame(fixedEf.interval)
-# fixedEf.interval
 
-
-# Last try to make a nice plot...
-pd <- position_dodge(width=0.4)
-ggplot(newdat, aes(x = tOut, y = pred, colour = sex))+
-  geom_linerange(aes(ymin = pred - 2 * SE2,
-                     ymax = pred + 2*SE2),col="red", alpha = 0.4)+
-  geom_errorbar(aes(ymin = pred - 2 * SE, ymax = pred + 2*SE),
-                col="black", width=.1, alpha = 0.4) +
-  theme_minimal() + 
-  geom_point(aes(x = c.data$tOut,
-                 y = c.data$clo,
-                 colour = c.data$sex),
-             size = .3, shape = 2)+
-  geom_point() 
