@@ -327,107 +327,139 @@ uv_opt0 <- uv2
 #using laplace approximation.
 #The inner loop is the estimation of u,v and gamma and should therefore use the joint likelihood.
 
-grad2 <- function(uv, beta, sigma, sigma.u, sigma.v, X, Z, W, y){
-  #for diagonal matrices: inverse(M) = 1/M
-  u_length <- dim(Z)[2]
-  u <- matrix(uv[1:u_length], ncol = 1)
-  v <- matrix(uv[-c(1:u_length)], ncol = 1)
-  invPsi <-   diag(1/sigma.u, nrow = u_length, ncol = u_length)
-  invPhi <-   diag(1/sigma.v, nrow = dim(W)[2], ncol = dim(W)[2])
-  invSigma <- diag(1/sigma, nrow = length(y), ncol = length(y))
-  
-  e <- y - X%*%beta - Z%*%u - W%*%v
-  invSigma_x_e <- invSigma%*%e
-  gradient <- matrix(c(t(Z)%*%invSigma_x_e-invPsi%*%u, t(W)%*%invSigma_x_e-invPhi%*%v), ncol = 1)
-  return(-gradient)
-}
-
-hess2 <- function(uv, beta, sigma, sigma.u, sigma.v, X, Z, W, y){
-  #for diagonal matrices: inverse(M) = 1/M
-  u_length <- dim(Z)[2]
-  u <- matrix(uv[1:u_length], ncol = 1)
-  v <- matrix(uv[-c(1:u_length)], ncol = 1)
-  invPsi <-   diag(1/sigma.u, nrow = u_length, ncol = u_length)
-  invPhi <-   diag(1/sigma.v, nrow = dim(W)[2], ncol = dim(W)[2])
-  invSigma <- diag(1/sigma, nrow = length(y), ncol = length(y))
-  
-  #Save one matrix multiplication pr. run
-  tWinvSigma <- t(W)%*%invSigma
-  #Save one more matrix multiplication pr. run
-  tZinSigma <- t(Z)%*%invSigma
-  
-  luu <- -tZinSigma%*%Z-invPsi
-  lvu <- -tWinvSigma%*%Z
-  luv <- -tZinSigma%*%W
-  lvv <- -tWinvSigma%*%W-invPhi
-  
-  hessian <- rbind(cbind(luu, luv),
-                   cbind(lvu, lvv))
-  return(-hessian)
-}
+# grad2 <- function(uv, beta, sigma, sigma.u, sigma.v, X, Z, W, y){
+#   #for diagonal matrices: inverse(M) = 1/M
+#   u_length <- dim(Z)[2]
+#   u <- matrix(uv[1:u_length], ncol = 1)
+#   v <- matrix(uv[-c(1:u_length)], ncol = 1)
+#   invPsi <-   diag(1/sigma.u, nrow = u_length, ncol = u_length)
+#   invPhi <-   diag(1/sigma.v, nrow = dim(W)[2], ncol = dim(W)[2])
+#   invSigma <- diag(1/sigma, nrow = length(y), ncol = length(y))
+#   
+#   e <- y - X%*%beta - Z%*%u - W%*%v
+#   invSigma_x_e <- invSigma%*%e
+#   gradient <- matrix(c(t(Z)%*%invSigma_x_e-invPsi%*%u, t(W)%*%invSigma_x_e-invPhi%*%v), ncol = 1)
+#   return(-gradient)
+# }
+# 
+# hess2 <- function(uv, beta, sigma, sigma.u, sigma.v, X, Z, W, y){
+#   #for diagonal matrices: inverse(M) = 1/M
+#   u_length <- dim(Z)[2]
+#   u <- matrix(uv[1:u_length], ncol = 1)
+#   v <- matrix(uv[-c(1:u_length)], ncol = 1)
+#   invPsi <-   diag(1/sigma.u, nrow = u_length, ncol = u_length)
+#   invPhi <-   diag(1/sigma.v, nrow = dim(W)[2], ncol = dim(W)[2])
+#   invSigma <- diag(1/sigma, nrow = length(y), ncol = length(y))
+#   
+#   #Save one matrix multiplication pr. run
+#   tWinvSigma <- t(W)%*%invSigma
+#   #Save one more matrix multiplication pr. run
+#   tZinSigma <- t(Z)%*%invSigma
+#   
+#   luu <- -tZinSigma%*%Z-invPsi
+#   lvu <- -tWinvSigma%*%Z
+#   luv <- -tZinSigma%*%W
+#   lvv <- -tWinvSigma%*%W-invPhi
+#   
+#   hessian <- rbind(cbind(luu, luv),
+#                    cbind(lvu, lvv))
+#   return(-hessian)
+# }
 
 library(msos)
-joint.likelihood <- function(uv, beta, sigma, sigma.u, sigma.v, X, Z, W, y){
-  u_length <- dim(Z)[2]
-  u <- matrix(uv[1:u_length], ncol = 1)
-  v <- matrix(uv[-c(1:u_length)], ncol = 1)
 
-  jll <- sum(dnorm(y, mean = X%*%beta + Z%*%u + W%*%v, sd = sqrt(sigma), log = T)) +
-                           sum(dnorm(as.numeric(u), sd = sqrt(sigma.u), log = T)) + 
-                           sum(dnorm(as.numeric(v), sd = sqrt(sigma.v), log = T))
+c.data %>% filter(subjId %in% c(0:20)) %>%
+  select(subjId, sex) %>%
+  distinct() %>%
+  mutate(sex = case_when(sex == "male" ~ 1, TRUE ~ 0)) -> subjSex
+
+c.data %>% filter(subjId %in% c(0:20)) %>%
+  select(subjId, day, sex) %>%
+  distinct() %>%
+  mutate(sex = case_when(sex == "male" ~ 1, TRUE ~ 0)) -> subjDaySex
+
+c.data %>% filter(subjId %in% c(0:20)) %>%
+  select(subjId, day) %>%
+  distinct() %>%
+  group_by(subjId) %>%
+  summarise(subjDay_reps = sum(n())) %>%
+  select(subjDay_reps) %>%
+  t() %>% as.numeric() -> gamma_idxSubDay
+
+c.data %>% filter(subjId %in% c(0:20)) %>%
+  select(subjId) %>%
+  group_by(subjId) %>%
+  summarise(subj_reps = sum(n())) %>%
+  select(subj_reps) %>%
+  t() %>% as.numeric() -> gamma_idxSub
+
+idx_Psi <- subjSex$sex
+idx_Phi <- subjDaySex$sex
+idx_Sigma <- as.numeric(c.data$sex == "male")[1:362]
+
+X <- cbind(1, as.numeric(c.data$sex == "male"))[1:362,]
+Z <- dummy(c.data$subjId[1:362], levelsToKeep = unique(c.data$subjId[1:362]))
+#Introduce W which is the design matrix for the nested subjdID:day observations
+c.data$subjDay <- factor(paste0(c.data$subjId, "/",c.data$day))
+W <- dummy(c.data$subjDay[1:362], levelsToKeep = unique(c.data$subjDay[1:362]))
+y <- c.data$clo[1:362]
+
+joint.likelihood <- function(uvg, alpha, beta, sigma, sigma.u, sigma.v, sigma.g, X, Z, W, y){
+  u_length <- dim(Z)[2]
+  u <- matrix(uvg[1:u_length], ncol = 1)
+  v <- matrix(uvg[(u_length+1):(u_length+dim(W)[2])], ncol = 1)
+  gamma <- matrix(uvg[-c(1:(u_length+dim(W)[2]))], ncol = 1)
+  
+  SIGMA.U <- exp(sigma.u + idx_Psi*alpha - gamma)
+  SIGMA.V <- exp(sigma.v + idx_Phi*alpha + rep(-gamma, times = gamma_idxSubDay))
+  SIGMA.G <- exp(sigma.g)
+  SIGMA <- exp(sigma + idx_Sigma*alpha + rep(-gamma, times = gamma_idxSub))
+  
+  jll <- sum(dnorm(y, mean = X%*%beta + Z%*%u + W%*%v, sd = sqrt(SIGMA), log = T)) +
+    sum(dnorm(as.numeric(u), sd = sqrt(SIGMA.U), log = T)) + 
+    sum(dnorm(as.numeric(v), sd = sqrt(SIGMA.V), log = T)) +
+    sum(dnorm(as.numeric(gamma), sd = sqrt(SIGMA.G), log = T))
   return(-jll)
 }
 
-nll2 <- function(theta, X, Z, W, y, save_u = F){
-  beta <- matrix(theta[1:2], ncol = 1)
-  sigma.u <- exp(theta[3])
-  sigma.v <- exp(theta[4])
-  sigma <- exp(theta[5])
-  
-  Psi <-   diag(rep(sigma.u,dim(Z)[2]))
-  Phi <-   diag(rep(sigma.v,dim(W)[2]))
-  Sigma <- diag(rep(sigma,length(y)))
-  
-  est <- nlminb(start = rep(0, dim(Z)[2]+dim(W)[2]), objective = joint.likelihood,
-                beta = beta, sigma = sigma, sigma.u = sigma.u, sigma.v = sigma.v,
-                X =X, Z = Z, W = W, y = y)
-                # gradient = grad2,
-                # hessian = hess2)
-  uv <- est$par
-  l.u <- est$objective
-  #Faster solution: Find the optimal solution based on solving a system of equations (have to know the hessian)
-  # A2 <- rbind(
-  #   cbind(t(Z)%*%solve(Sigma)%*%Z+solve(Psi), t(Z)%*%solve(Sigma)%*%W),
-  #   cbind(t(W)%*%solve(Sigma)%*%Z, t(W)%*%solve(Sigma)%*%W+solve(Phi))
-  # )
-  # B2 <- rbind(t(Z)%*%solve(Sigma)%*%(y-X%*%beta),
-  #             t(W)%*%solve(Sigma)%*%(y-X%*%beta))
-  # uv2 <- solve(A2, B2)
-  # u <- uv2[1:dim(Z)[2]]
-  # v <- uv2[-c(1:dim(Z)[2])]
-  
-  #evaluate the joint likelihood of this solution
-  # l.u <- -(mvtnorm::dmvnorm(y, mean = X%*%beta + Z%*%u + W%*%v, sigma = Sigma, log = T) +
-  #            mvtnorm::dmvnorm(as.numeric(u), sigma = Psi, log = T) +
-  #            mvtnorm::dmvnorm(as.numeric(v), sigma = Phi, log = T))
-  
-  #Return the NEGATIVE hessian according to the section between 5.100 and 5.101 p. 201
-  H <- -hess2(uv, beta = beta, sigma = sigma, sigma.u = sigma.u, sigma.v = sigma.v, 
-              X = X, Z = Z, W = W, y = y)
-  #return negative log likelihood (and thus + 0.5log(prod....))
-  return(l.u + 0.5*logdet(H/(2*pi)))
+joined.likelihood <- function(gamma, sigma.g, Phi, Psi, Sigma, X, Z, W, beta){
+  Phi <- Phi*exp(-gamma)
+  Psi <- Psi*exp(-gamma)
+  Sigma <- Sigma*exp(-gamma)
+  print(dim(Z))
+  print(dim(Psi))
+  V <- Sigma + Z%*%Psi%*%t(Z) + W%*%Phi%*%t(W)
+  #constant effect of gender across all variances
+  #Estimation in the exponential domain and estimate alpha as a scaling factor of the female variance
+  # -> e(theta)*e(alpha) = e(theta + alpha)
+  return(-(mvtnorm::dmvnorm(y, mean = X%*%beta, sigma = V, log = T)+sum(dnorm(gamma, sd = sqrt(sigma.g), log = T))))
 }
-library(profvis)
-profvis(nll2(theta = c(0.59242, -0.08439, log(.09730^2),log(.10395^2), log(.05597^2)),
-             X = X, Z = Z, W = W, y = y))
-par_est_inner_opt2 <- nlminb(start = c(0.59242, -0.08439, log(.09730^2),log(.10395^2), log(.05597^2)), 
-                             objective = nll2, 
-                             X = X, Z = Z, W = W, y = y, 
-                             control = list(trace=1))
 
-sqrt(exp(par_est_inner_opt2$par[3:5]))
-exp(par_est2$par[1:3])
-
-hessian(func = joint.likelihood, x = c(0.59242, -0.08439, log(.09730^2),log(.10395^2), log(.05597^2)),
-                                beta, sigma, sigma.u, sigma.v, X, Z, W, y)
-        
+opt.fun3 <- function(theta, X, Z, W, y){
+  alpha <- theta[1]
+  Phi <- diag(exp(theta[2] + idx_Phi*alpha))
+  Psi <- diag(exp(theta[3] + idx_Psi*alpha))
+  Sigma <- diag(exp(theta[4] + idx_Sigma*alpha))
+  sigma.g <- exp(theta[5])
+  beta <- matrix(theta[6:7], ncol = 1)
+  gamma <- c()
+  #find gamma:
+  for (i in 1:length(unique(c.data$subjId))){
+    idx <- which(c.data$subjId == i)
+    est <- nlminb(start = 0, objective = joined.likelihood,
+                  sigma.g=sigma.g, Phi=Phi[idx,idx], Psi = Psi[idx,idx], Sigma = Sigma[idx,idx], 
+                  X = X[idx,], Z = matrix(Z[idx,(i+1)], ncol = 1), W = matrix(W[idx,(i+1)],ncol=1), beta = beta)
+    gamma <- c(gamma, est$par)
+  }
+  l.u <- joined.likelihood(gamma = gamma, sigma.g = sigma.g, Phi=Phi, Psi=Psi, Sigma=Sigma, X=X, Z=Z, W=W, beta=beta)
+  
+  H <- hessian(joined.likelihood, sigma.g=sigma.g, 
+               Phi=Phi, Psi = Psi, Sigma = Sigma, 
+               X = X, Z = Z, W = W, beta = beta)
+  
+  #Negative log-likelihood
+  obj <-  l.u + 1/2*logdet(H/(2*pi))
+  return(obj)
+}
+opt.fun3(c(0,0,0,0,0,0,0), X = X, Z = Z, W = W, y = y)
+ests <- nlminb(c(0,0,0,0,0,0,0), objective = opt.fun3, X = X, Z = Z, W = W, y = y)
