@@ -370,10 +370,9 @@ ML1 <- ggplot(c.data, aes(x = predict(final.model.ML1), y = clo)) +
   labs(x='Predicted Values', y='Actual Values', title='Predicted vs. Actual Values', subtitle = "With subjId as random effects") +
   theme_minimal() 
 
-ggsave(filename = file.path(figpath, "predictVSactual1.png"), plot = ML1)
-ggsave(filename = file.path(figpath, "predictVSactual2.png"), plot = ML2)
-ggsave(filename = file.path(figpath, "predictVSactual3.png"), plot = ML3)
-
+ggsave(filename = file.path(figpath, "predictVSactual1.png"), plot = ML1, height = 5, width = 7.5)
+ggsave(filename = file.path(figpath, "predictVSactual2.png"), plot = ML2, height = 5, width = 7.5)
+ggsave(filename = file.path(figpath, "predictVSactual3.png"), plot = ML3, height = 5, width = 7.5)
 
 
 
@@ -400,17 +399,41 @@ Designmat <- model.matrix(eval(eval(final.model.ML3$call$fixed)[-2]), newdat[-nc
 # Compute standard error for predictions
 predvar <- diag(Designmat %*% final.model.ML3$varFix %*% t(Designmat))
 newdat$SE <- sqrt(predvar) 
-newdat$SE2 <- sqrt(predvar+final.model.ML3$sigma^2)
+newdat$SE2 <- sqrt(predvar+final.model.ML3$sigma^2) # sigma = stdDev residual = SE*2 gives 95% confidence intervals on predictions
+newdat$lowerCI<-newdat$pred-(2*newdat$SE2)
+newdat$upperCI<-newdat$pred+(2*newdat$SE2)
 
 
 c.data$pred <- predict(final.model.ML3)
-ggplot(c.data,aes(x=clo,y=pred)) + 
+ML3.pred <- ggplot(c.data,aes(x=clo,y=pred)) + 
   geom_point() +
+  geom_ribbon(aes(ymin=pred-2*newdat$SE,ymax=pred+2*newdat$SE),alpha=0.3,fill="blue") +
   geom_ribbon(aes(ymin=pred-2*newdat$SE2,ymax=pred+2*newdat$SE2),alpha=0.2,fill="red") +
-  geom_ribbon(aes(ymin=pred-2*newdat$SE,ymax=pred+2*newdat$SE),alpha=0.2,fill="blue") +
   labs(x='Actual Values', y='Predicted Values', title='Predicted vs. Actual Values of Clothing Insulation Level',
        subtitle = "Within day auto-correlation") +
-  theme_minimal()
+  theme_minimal() +
+  geom_abline(intercept = 0)
+ggsave(filename = file.path(figpath, "predictVSactual3_1.png"), plot = ML3.pred, height = 5, width = 7.5)
+
+
+# Facet on sex
+ML3.pred.sex <- ggplot(c.data,aes(x=clo,y=pred)) + 
+  geom_point() +
+  geom_ribbon(aes(ymin=pred-2*newdat$SE,ymax=pred+2*newdat$SE),alpha=0.3,fill="blue") +
+  geom_ribbon(aes(ymin=pred-2*newdat$SE2,ymax=pred+2*newdat$SE2),alpha=0.2,fill="red") +
+  labs(x='Actual Values', y='Predicted Values', title='Predicted vs. Actual Values of Clothing Insulation Level',
+       subtitle = "Within day auto-correlation") +
+  theme_minimal() +
+  geom_abline(intercept = 0) +
+  facet_wrap(vars(sex))
+ggsave(filename = file.path(figpath, "predictVSactual3_1_sex.png"), plot = ML3.pred.sex, height = 5, width = 7.5)
+
+boxplot(c.data$pred[c.data$sex == "male"], c.data$clo[c.data$sex == "male"])
 
 
 
+# Lidt blandet plots:
+plot(resid(final.model.ML3, type = "pearson"))
+abline(0, 0)
+
+qqnorm(final.model.ML3, abline = c(0, 1))
