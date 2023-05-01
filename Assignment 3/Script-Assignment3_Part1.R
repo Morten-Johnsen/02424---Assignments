@@ -353,7 +353,6 @@ pacf(residuals(final.model.ML3, retype="normalized"), main = "Auto-correlation f
 
 
 
-
 # Predicted versus actual -------------------------------------------------
 ML3 <- ggplot(c.data, aes(x = predict(final.model.ML3), y = clo)) +
   geom_smooth(method = "lm") +
@@ -375,3 +374,63 @@ ggsave(filename = file.path(figpath, "predictVSactual1.png"), plot = ML1)
 ggsave(filename = file.path(figpath, "predictVSactual2.png"), plot = ML2)
 ggsave(filename = file.path(figpath, "predictVSactual3.png"), plot = ML3)
 
+
+
+
+# With pred. intervals ----------------------------------------------------
+
+newdat <- data.frame( tOut = seq(min(c.data$tOut), max(c.data$tOut), length = nrow(c.data)), 
+                      tInOp = seq(min(c.data$tInOp), max(c.data$tInOp), length = nrow(c.data)),
+                      sex = c(rep("male", 400), rep("female", 403)),
+                      subjId = sort(c(rep(seq(48, 100, 10), 133), 48, 58, 68, 78, 98)),
+                      time = seq(min(c.data$time), max(c.data$time), length = nrow(c.data)),
+                      day = sort(c(rep(c(1, 2, 3), 267), 1, 1)),
+                      subDay = sort(c(rep(c(1, 2, 3), 267), 1, 1)))  
+
+# Make factors
+newdat$subjId <- factor(newdat$subjId)
+newdat$day <- factor(newdat$day)
+newdat$subDay <- factor(newdat$subDay)
+newdat$sex <- factor(newdat$sex)
+
+newdat$pred <- predict(final.model.ML3, newdat, level = 0)
+
+Designmat <- model.matrix(eval(eval(final.model.ML3$call$fixed)[-2]), newdat[-ncol(newdat)])
+
+# Compute standard error for predictions
+predvar <- diag(Designmat %*% final.model.ML3$varFix %*% t(Designmat))
+newdat$SE <- sqrt(predvar) 
+newdat$SE2 <- sqrt(predvar+final.model.ML3$sigma^2)
+
+
+p1 <- ggplot(newdat,aes(x=tOut,y=pred)) + 
+  geom_line() +
+  geom_ribbon(aes(ymin=pred-2*SE2,ymax=pred+2*SE2),alpha=0.2,fill="red") +
+  geom_ribbon(aes(ymin=pred-2*SE,ymax=pred+2*SE),alpha=0.2,fill="blue") +
+  geom_point(data=c.data,aes(x=tOut,y=clo)) +
+  scale_y_continuous("Clothing insulation level") +
+  facet_wrap(vars(sex))
+p1
+
+# Another prediction interval plot
+ggpredict(final.model.ML3, "tOut", type = "re") %>% plot(rawdata = T, dot.alpha = 0.2)
+
+
+# fixedEf.interval <- intervals(final.model.ML3, which = "fixed")$fixed
+# fixedEf.interval <- data.frame(fixedEf.interval)
+# fixedEf.interval
+
+
+# Last try to make a nice plot...
+pd <- position_dodge(width=0.4)
+ggplot(newdat, aes(x = tOut, y = pred, colour = sex))+
+  geom_linerange(aes(ymin = pred - 2 * SE2,
+                     ymax = pred + 2*SE2),col="red", alpha = 0.4)+
+  geom_errorbar(aes(ymin = pred - 2 * SE, ymax = pred + 2*SE),
+                col="black", width=.1, alpha = 0.4) +
+  theme_minimal() + 
+  geom_point(aes(x = c.data$tOut,
+                 y = c.data$clo,
+                 colour = c.data$sex),
+             size = .3, shape = 2)+
+  geom_point() 
