@@ -368,17 +368,17 @@ uv_opt0 <- uv2
 
 library(msos)
 
-c.data %>% filter(subjId %in% c(0:20)) %>%
+c.data %>% 
   select(subjId, sex) %>%
   distinct() %>%
   mutate(sex = case_when(sex == "male" ~ 1, TRUE ~ 0)) -> subjSex
 
-c.data %>% filter(subjId %in% c(0:20)) %>%
+c.data %>% 
   select(subjId, day, sex) %>%
   distinct() %>%
   mutate(sex = case_when(sex == "male" ~ 1, TRUE ~ 0)) -> subjDaySex
 
-c.data %>% filter(subjId %in% c(0:20)) %>%
+c.data %>%
   select(subjId, day) %>%
   distinct() %>%
   group_by(subjId) %>%
@@ -386,7 +386,7 @@ c.data %>% filter(subjId %in% c(0:20)) %>%
   select(subjDay_reps) %>%
   t() %>% as.numeric() -> gamma_idxSubDay
 
-c.data %>% filter(subjId %in% c(0:20)) %>%
+c.data %>%
   select(subjId) %>%
   group_by(subjId) %>%
   summarise(subj_reps = sum(n())) %>%
@@ -395,14 +395,14 @@ c.data %>% filter(subjId %in% c(0:20)) %>%
 
 idx_Psi <- subjSex$sex
 idx_Phi <- subjDaySex$sex
-idx_Sigma <- as.numeric(c.data$sex == "male")[1:362]
+idx_Sigma <- as.numeric(c.data$sex == "male")
 
-X <- cbind(1, as.numeric(c.data$sex == "male"))[1:362,]
-Z <- dummy(c.data$subjId[1:362], levelsToKeep = unique(c.data$subjId[1:362]))
+X <- cbind(1, as.numeric(c.data$sex == "male"))
+Z <- dummy(c.data$subjId, levelsToKeep = unique(c.data$subjId))
 #Introduce W which is the design matrix for the nested subjdID:day observations
 c.data$subjDay <- factor(paste0(c.data$subjId, "/",c.data$day))
-W <- dummy(c.data$subjDay[1:362], levelsToKeep = unique(c.data$subjDay[1:362]))
-y <- c.data$clo[1:362]
+W <- dummy(c.data$subjDay, levelsToKeep = unique(c.data$subjDay))
+y <- c.data$clo
 
 joint.likelihood <- function(uvg, alpha, beta, sigma, sigma.u, sigma.v, sigma.g, X, Z, W, y){
   u_length <- dim(Z)[2]
@@ -422,18 +422,39 @@ joint.likelihood <- function(uvg, alpha, beta, sigma, sigma.u, sigma.v, sigma.g,
   return(-jll)
 }
 
-joined.likelihood <- function(gamma, sigma.g, Phi, Psi, Sigma, X, Z, W, beta){
+X <- cbind(1, as.numeric(c.data$sex == "male"))
+Z <- dummy(c.data$subjId, levelsToKeep = unique(c.data$subjId))
+#Introduce W which is the design matrix for the nested subjdID:day observations
+c.data$subjDay <- factor(paste0(c.data$subjId, "/",c.data$day))
+W <- dummy(c.data$subjDay, levelsToKeep = unique(c.data$subjDay))
+y <- c.data$clo
+
+joined.likelihood <- function(gamma, sigma.g, Phi, Psi, Sigma, X, Z, W, beta, y){
   Phi <- Phi*exp(-gamma)
   Psi <- Psi*exp(-gamma)
   Sigma <- Sigma*exp(-gamma)
-  print(dim(Z))
-  print(dim(Psi))
+  
   V <- Sigma + Z%*%Psi%*%t(Z) + W%*%Phi%*%t(W)
+  
+  #constant effect of gender across all variances
+  #Estimation in the exponential domain and estimate alpha as a scaling factor of the female variance
+  # -> e(theta)*e(alpha) = e(theta + alpha)
+  return(-(mvtnorm::dmvnorm(y, mean = X%*%beta, sigma = V, log = T)+dnorm(gamma, sd = sqrt(sigma.g), log = T)))
+}
+
+joined.likelihood.H <- function(gamma, sigma.g, Phi, Psi, Sigma, X, Z, W, beta, y){
+  Phi <- Phi*diag(exp(rep(-gamma, times = gamma_idxSubDay)))
+  Psi <- Psi*diag(exp(-gamma))
+  Sigma <- Sigma*diag(exp(rep(-gamma, times = gamma_idxSub)))
+
+  V <- Sigma + Z%*%Psi%*%t(Z) + W%*%Phi%*%t(W)
+
   #constant effect of gender across all variances
   #Estimation in the exponential domain and estimate alpha as a scaling factor of the female variance
   # -> e(theta)*e(alpha) = e(theta + alpha)
   return(-(mvtnorm::dmvnorm(y, mean = X%*%beta, sigma = V, log = T)+sum(dnorm(gamma, sd = sqrt(sigma.g), log = T))))
 }
+
 
 opt.fun3 <- function(theta, X, Z, W, y){
   alpha <- theta[1]
@@ -443,23 +464,42 @@ opt.fun3 <- function(theta, X, Z, W, y){
   sigma.g <- exp(theta[5])
   beta <- matrix(theta[6:7], ncol = 1)
   gamma <- c()
-  #find gamma:
-  for (i in 1:length(unique(c.data$subjId))){
-    idx <- which(c.data$subjId == i)
-    est <- nlminb(start = 0, objective = joined.likelihood,
-                  sigma.g=sigma.g, Phi=Phi[idx,idx], Psi = Psi[idx,idx], Sigma = Sigma[idx,idx], 
-                  X = X[idx,], Z = matrix(Z[idx,(i+1)], ncol = 1), W = matrix(W[idx,(i+1)],ncol=1), beta = beta)
-    gamma <- c(gamma, est$par)
-  }
-  l.u <- joined.likelihood(gamma = gamma, sigma.g = sigma.g, Phi=Phi, Psi=Psi, Sigma=Sigma, X=X, Z=Z, W=W, beta=beta)
+  H <- c()
   
-  H <- hessian(joined.likelihood, sigma.g=sigma.g, 
-               Phi=Phi, Psi = Psi, Sigma = Sigma, 
-               X = X, Z = Z, W = W, beta = beta)
+  #find gamma:
+  for (i in 0:(length(unique(c.data$subjId))-1)){
+    idx <- which(c.data$subjId == i)
+    subday <- which(unique(c.data$subjDay) %in% as.character(unique(c.data$subjDay[idx])))
+    days <- length(subday)
+
+    est <- nlminb(start = 0, objective = joined.likelihood,
+                  #de her matricer er mere eller mindre de samme for alle iteration. Da de alle sammen bare er
+                  #diagonal matricer og det eneste der ændrer sig er hvis der er !=18 observationer for en person
+                  #eller hvis der er != 3 forskellige dage med observationer
+                  sigma.g=sigma.g, Phi=Phi[1:days,1:days], Psi = matrix(Psi[i+1,i+1]), Sigma = Sigma[idx,idx],
+                  X = X[idx,], Z = matrix(Z[idx,(i+1)], ncol = 1), W = W[idx, subday],
+                  beta = beta, y = y[idx])
+    gamma <- c(gamma, est$par)
+    
+    H <- c(H, hessian(func = joined.likelihood, x = est$par, 
+                      sigma.g=sigma.g, Phi=Phi[1:days,1:days], 
+                      Psi = matrix(Psi[i+1,i+1]), Sigma = Sigma[idx,idx],
+                      X = X[idx,], Z = matrix(Z[idx,(i+1)], ncol = 1), W = W[idx, subday],
+                      beta = beta, y = y[idx]))
+  }
+
+  l.u <- joined.likelihood.H(gamma = gamma, sigma.g = sigma.g, 
+                           Phi=Phi, Psi=Psi, Sigma=Sigma, 
+                           X=X, Z=Z, W=W, beta=beta, y = y)
+  
+  # H <- hessian(joined.likelihood.H, x = gamma, sigma.g=sigma.g, 
+  #              Phi=Phi, Psi = Psi, Sigma = Sigma, 
+  #              X = X, Z = Z, W = W, beta = beta, y = y)
   
   #Negative log-likelihood
-  obj <-  l.u + 1/2*logdet(H/(2*pi))
+  #obj <-  l.u + 1/2*logdet(H/(2*pi))
+  obj <- l.u + 1/2*sum(log(H/(2*pi)))
   return(obj)
 }
 opt.fun3(c(0,0,0,0,0,0,0), X = X, Z = Z, W = W, y = y)
-ests <- nlminb(c(0,0,0,0,0,0,0), objective = opt.fun3, X = X, Z = Z, W = W, y = y)
+ests <- nlminb(c(0,0,0,0,0,0,0), objective = opt.fun3, X = X, Z = Z, W = W, y = y, control = list(trace = 1))
