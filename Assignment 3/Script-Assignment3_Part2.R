@@ -49,7 +49,6 @@ dim(Z) # Z is 803 by 47.
 library(mvtnorm)
 library(numDeriv)
 
- 
 # Function that outputs negative log-likelihood of multivariate normal distribution
 opt.fun <- function(theta){
   # Create variance-covariance structures
@@ -63,7 +62,7 @@ opt.fun <- function(theta){
   V <- Sigma + Z%*%Psi%*%t(Z)
   
   #log-likelihood of multivariate normal distribution:
-  obj <-  mvtnorm::dmvnorm(y, mean = X%*%beta, sigma = V, log = T)x
+  obj <-  mvtnorm::dmvnorm(y, mean = X%*%beta, sigma = V, log = T)
   
   return(-obj)
 }
@@ -89,7 +88,6 @@ summary(fit0)
 Psi <- diag(rep(exp(par_est$par[1]),dim(Z)[2]))
 Sigma <- diag(rep(exp(par_est$par[2]),length(y)))
 beta <- matrix(par_est$par[3:4], ncol = 1)
-ª
 
 # Estimate random effects based on the found Psi, Sigma and beta
 y_adj <- y - X%*%beta
