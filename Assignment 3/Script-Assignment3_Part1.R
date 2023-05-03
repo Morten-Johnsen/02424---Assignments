@@ -37,6 +37,11 @@ c.data$subDay <- factor(c.data$subDay)
 c.data$sex <- factor(c.data$sex)
 str(c.data)
 
+
+# Summarising tables
+table(c.data$sex)
+table(c.data$day)
+
 #### ------------- Part 1: Fitting a linear mixed effect model ---------------
 
 ## Using subjId as random effect ##
@@ -411,8 +416,7 @@ ML3.pred <- ggplot(c.data,aes(x=clo,y=pred)) +
   geom_ribbon(aes(ymin=pred-2*newdat$SE2,ymax=pred+2*newdat$SE2),alpha=0.2,fill="red") +
   labs(x='Actual Values', y='Predicted Values', title='Predicted vs. Actual Values of Clothing Insulation Level',
        subtitle = "Within day auto-correlation") +
-  theme_minimal() +
-  geom_abline(intercept = 0)
+  theme_minimal()
 ggsave(filename = file.path(figpath, "predictVSactual3_1.png"), plot = ML3.pred, height = 5, width = 7.5)
 
 
@@ -424,7 +428,6 @@ ML3.pred.sex <- ggplot(c.data,aes(x=clo,y=pred)) +
   labs(x='Actual Values', y='Predicted Values', title='Predicted vs. Actual Values of Clothing Insulation Level',
        subtitle = "Within day auto-correlation") +
   theme_minimal() +
-  geom_abline(intercept = 0) +
   facet_wrap(vars(sex))
 ggsave(filename = file.path(figpath, "predictVSactual3_1_sex.png"), plot = ML3.pred.sex, height = 5, width = 7.5)
 
@@ -436,4 +439,25 @@ boxplot(c.data$pred[c.data$sex == "male"], c.data$clo[c.data$sex == "male"])
 plot(resid(final.model.ML3, type = "pearson"))
 abline(0, 0)
 
-qqnorm(final.model.ML3, abline = c(0, 1))
+
+# qq-plot - maybe add stats_qq_line/ribbon
+qqplot.data <- function (vec){
+  # following four lines from base R's qqline()
+  y <- quantile(vec[!is.na(vec)], c(0.25, 0.75))
+  x <- qnorm(c(0.25, 0.75))
+  slope <- diff(y)/diff(x)
+  int <- y[1L] - slope * x[1L]
+  
+  d <- data.frame(resids = vec)
+  
+  ggplot(d, aes(sample = resids)) + 
+    stat_qq() + 
+    geom_abline(slope = slope, intercept = int) +
+    theme_minimal()
+}
+
+qqplot.data(resid(final.model.ML3, type = "pearson"))
+
+
+
+
