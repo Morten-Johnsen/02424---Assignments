@@ -549,8 +549,6 @@ opt.fun3 <- function(theta, X, Z, W, y){
                   # W: Take rows and columns corresponding to subject
                   
                   sigma.g=sigma.g, Phi=Phi[subday,subday], Psi = matrix(Psi[i+1,i+1]), Sigma =Sigma[idx,idx],
-                  
-                  #sigma.g=sigma.g, Phi=Phi[1:days,1:days], Psi = matrix(Psi[i+1,i+1]), Sigma = Sigma[idx,idx],
                   X = X[idx,], Z = matrix(Z[idx,(i+1)], ncol = 1), W = W[idx, subday],
                   beta = beta, y = y[idx])
     gamma <- c(gamma, est$par)
@@ -582,15 +580,16 @@ ests$message
 # Compare betas
 ests$par[6:7]
 fixed.effects(fit1) # Almost the same
+sds <- sqrt(diag(solve(hessian(func = opt.fun3,x=ests$par, X = X, Z = Z, W = W, y = y))))
 
 logLik(fit1)
 -ests$objective # Better log-likelihood
 
 
-ests1 <- optim(par = c(0,0,0,0,0,0,0), fn = opt.fun3, method = "Nelder-Mead",
-              X = X, Z = Z, W = W, y = y,control = list(trace = 1))
-ests1$par[6:7]
-ests1$convergence # 1, which indicates that the iteration limit maxit has been reached :( 
+#ests1 <- optim(par = c(0,0,0,0,0,0,0), fn = opt.fun3, method = "Nelder-Mead",
+#              X = X, Z = Z, W = W, y = y,control = list(trace = 1))
+#ests1$par[6:7]
+#ests1$convergence # 1, which indicates that the iteration limit maxit has been reached :( 
 
 
 
