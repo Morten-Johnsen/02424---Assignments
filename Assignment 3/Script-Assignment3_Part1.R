@@ -353,8 +353,20 @@ plot(final.model.ML3, clo ~ fitted(.) | sex, abline = c(0,1))
 # This also shows higher variance of fitted values vs. actual values for females (than male)
 
 par(mfrow = c(1, 1))
-acf(residuals(final.model.ML3, retype="normalized"), main = "Auto-correlation for final.model.ML3 (ACF)")
-pacf(residuals(final.model.ML3, retype="normalized"), main = "Auto-correlation for final.model.ML3 (PACF)")
+acf(residuals(final.model.ML3, retype="normalized"), main = "Auto-correlation for final.model.ML3 (ACF)", lag.max = 6)
+pacf(residuals(final.model.ML3, retype="normalized"), main = "Auto-correlation for final.model.ML3 (PACF)", lag.max = 6)
+
+
+# QQplot
+c.data$res <- resid(final.model.ML3, type = "p")
+
+qqplot <- ggplot(c.data, aes(sample = res, colour = factor(sex))) +
+  stat_qq() +
+  stat_qq_line() + 
+  theme_minimal()+
+  labs(title = "Normal QQ", subtitle = "Within-day autocorrelation",
+       x = "Theoretical quantiles", y = "Std. Persons residuals", color = "Sex") 
+ggsave(filename = file.path(figpath, "qqplot.png"), plot = qqplot, height = 5, width = 7.5)
 
 
 
@@ -435,29 +447,9 @@ boxplot(c.data$pred[c.data$sex == "male"], c.data$clo[c.data$sex == "male"])
 
 
 
-# Lidt blandet plots:
-plot(resid(final.model.ML3, type = "pearson"))
-abline(0, 0)
 
-
-# qq-plot - maybe add stats_qq_line/ribbon
-qqplot.data <- function (vec){
-  # following four lines from base R's qqline()
-  y <- quantile(vec[!is.na(vec)], c(0.25, 0.75))
-  x <- qnorm(c(0.25, 0.75))
-  slope <- diff(y)/diff(x)
-  int <- y[1L] - slope * x[1L]
-  
-  d <- data.frame(resids = vec)
-  
-  ggplot(d, aes(sample = resids)) + 
-    stat_qq() + 
-    geom_abline(slope = slope, intercept = int) +
-    theme_minimal()
-}
-
-qqplot.data(resid(final.model.ML3, type = "pearson"))
-
-
-
+### How much does the random effects explain the left over variance?
+## ML1 (tOut):
+0.01271465/(0.01271465 + 0.08153435) * 100
+# > 13.5 %
 

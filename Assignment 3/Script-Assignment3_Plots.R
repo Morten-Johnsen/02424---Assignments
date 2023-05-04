@@ -99,10 +99,58 @@ p3 <-
 p3
 
 pall <- grid.arrange(ggarrange(p1, p2, p3, ncol = 3, nrow = 1, common.legend = TRUE, legend="bottom"),
-                     top = textGrob("Between subject differences in Clothing insulation level",
+                     top = textGrob("     Between subject differences in Clothing insulation level",
                                     gp = gpar(fontsize = 12, font = 1),
                                     x = 0, hjust = 0))
 ggsave(filename = file.path(figpath, "subjIdDifferences.new.png"), plot = pall, height = 5, width = 8)
 
 
 
+
+############ histograms
+c.data.temp <- data.frame(clo = c.data$clo[c.data$sex=="female"])
+hist1 <- ggplot(c.data.temp, aes(x = clo)) + 
+  geom_histogram(aes(y =..density..),
+                 breaks = seq(min(c.data.temp), max(c.data.temp), by = 0.01), 
+                 colour = "red", 
+                 fill = "red",
+                 alpha = 0.2) +
+  stat_function(fun = dnorm, args = list(mean = mean(c.data.temp$clo), sd = sd(c.data.temp$clo))) +
+  theme_minimal()+
+  labs(x = "Clothing insulation level", subtitle = "Female")
+
+c.data.temp <- data.frame(clo = c.data$clo[c.data$sex=="male"])
+hist2 <- ggplot(c.data.temp, aes(x = clo)) + 
+  geom_histogram(aes(y =..density..),
+                 breaks = seq(min(c.data.temp), max(c.data.temp), by = 0.01), 
+                 colour = "blue", 
+                 fill = "blue",
+                 alpha = 0.2) +
+  stat_function(fun = dnorm, args = list(mean = mean(c.data.temp$clo), sd = sd(c.data.temp$clo))) +
+  theme_minimal()+
+  labs(x = "Clothing insulation level", subtitle = "Male")
+
+library(ggpubr)
+library(gridExtra)
+pallhist <- grid.arrange(ggarrange(hist1, hist2, ncol = 2, nrow = 1, common.legend = TRUE, legend="bottom"),
+                     top = textGrob("      Distribution of clothing insulation level",
+                                    gp = gpar(fontsize = 12, font = 1),
+                                    x = 0, hjust = 0))
+pallhist
+ggsave(filename = file.path(figpath, "sexDifferenceHist.png"), plot = pallhist, height = 5, width = 8)
+
+
+
+
+#### Plot slopes and intercepts for random effects - color by subject ID:
+intercept <- random.effects(final.model.ML1)$`(Intercept)`
+slope <- random.effects(final.model.ML1)$tOut
+
+alldf <- data.frame(cbind(slope, intercept, unique(c.data$subjId)))
+names(alldf)[3] <- "subjId"
+
+ggplot(data = alldf, aes(x, y)) +
+  geom_point() +
+  theme_minimal()+
+  scale_y_continuous(limits = c(min(intercept), 0.4)) +
+  geom_abline(data = alldf, aes(slope = slope, intercept = intercept, color = factor(subjId)))
