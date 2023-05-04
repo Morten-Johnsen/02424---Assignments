@@ -49,7 +49,6 @@ dim(Z) # Z is 803 by 47.
 library(mvtnorm)
 library(numDeriv)
 
- 
 # Function that outputs negative log-likelihood of multivariate normal distribution
 opt.fun <- function(theta){
   # Create variance-covariance structures
@@ -63,7 +62,7 @@ opt.fun <- function(theta){
   V <- Sigma + Z%*%Psi%*%t(Z)
   
   #log-likelihood of multivariate normal distribution:
-  obj <-  mvtnorm::dmvnorm(y, mean = X%*%beta, sigma = V, log = T)x
+  obj <-  mvtnorm::dmvnorm(y, mean = X%*%beta, sigma = V, log = T)
   
   return(-obj)
 }
@@ -89,7 +88,7 @@ summary(fit0)
 Psi <- diag(rep(exp(par_est$par[1]),dim(Z)[2]))
 Sigma <- diag(rep(exp(par_est$par[2]),length(y)))
 beta <- matrix(par_est$par[3:4], ncol = 1)
-ª
+
 
 # Estimate random effects based on the found Psi, Sigma and beta
 y_adj <- y - X%*%beta
@@ -301,12 +300,9 @@ print(xtable(appendix_table_uv2, display = c("d", "d", "g", "g", "g", "g", "g")
 
 uv_opt0 <- uv2
 #### 2.4 ####
-
+#derivation in overleaf
 
 #### 2.5 ####
-
-#### 2.6 ####
-
 c.data %>% 
   select(subjId, sex) %>%
   distinct() %>%
@@ -354,6 +350,120 @@ c.data$subjDay <- factor(paste0(c.data$subjId, "/",c.data$day))
 W <- dummy(c.data$subjDay, levelsToKeep = unique(c.data$subjDay))
 y <- c.data$clo
 
+
+joined.likelihood <- function(gamma, phi, Phi, Psi, Sigma, X, Z, W, beta, y){
+  # Scale covariance-matriced with exp(-gamma) as in model formulation
+  Phi <- Phi/exp(gamma)
+  Psi <- Psi/exp(gamma)
+  Sigma <- Sigma/exp(gamma)
+  
+  # Dispersion for clo
+  V <- Sigma + Z%*%Psi%*%t(Z) + W%*%Phi%*%t(W)
+  
+  #constant effect of gender across all variances
+  #Estimation in the exponential domain and estimate alpha as a scaling factor of the female variance
+  # -> e(theta)*e(alpha) = e(theta + alpha)
+  # Return negative joint likelihood: 
+  #     -f_(clo,gamma) = -(f(clo|gamma)*f(gamma))
+  # ->  -log(f_(clo,gamma)) = -(log(f(clo|gamma)) + log(f(gamma)))
+  
+  return(-(mvtnorm::dmvnorm(x = y, mean = X%*%beta, sigma = V, log = T)+dgamma(exp(gamma), shape = phi, rate = phi, log = T)))
+}
+
+# Phi <- diag(exp(theta[2] + idx_Phi*alpha + rep(-gamma, times = gamma_idxSubDay)))
+# Psi <- diag(exp(theta[3] + idx_Psi*alpha - gamma))
+# Sigma <- diag(exp(theta[4] + idx_Sigma*alpha + rep(-gamma, times = gamma_idxSub)))
+
+opt.fun4 <- function(theta, X, Z, W, y){
+  # alpha for males
+  alpha <- theta[1] #constant effect of gender across all variances
+  
+  #Estimation in the exponential domain and estimate alpha as a scaling factor of the female variance
+  # -> e(theta)*e(alpha) = e(theta + alpha)
+  Phi <- diag(exp(theta[2] + idx_Phi*alpha))
+  Psi <- diag(exp(theta[3] + idx_Psi*alpha))
+  Sigma <- diag(exp(theta[4] + idx_Sigma*alpha))
+  
+  beta <- matrix(theta[5:6], ncol = 1)
+  phi <- 1+exp(theta[7])
+  nu <- phi * 2
+  
+  ##### OPTIMIZE GAMMA ####
+  gAmmA <- c()
+  #find gamma:
+  # Loop over subject IDs to solve smaller problems, since they are independent.
+  for (i in 0:(length(unique(c.data$subjId))-1)){
+    idx <- which(c.data$subjId == i)
+    # Days for this subject
+    subday <- which(unique(c.data$subjDay) %in% as.character(unique(c.data$subjDay[idx])))
+    days <- length(subday)
+    
+    # Estimate optimal gamma
+    est <- nlminb(start = 0, objective = joined.likelihood,
+                  #de her matricer er mere eller mindre de samme for alle iteration. Da de alle sammen bare er
+                  #diagonal matricer og det eneste der ændrer sig er hvis der er !=18 observationer for en person
+                  #eller hvis der er != 3 forskellige dage med observationer
+                  
+                  # Phi: covariances for subDay 
+                  #   subset: Phi[subday,subday]
+                  # X: Take rows and columns corresponding to subject
+                  # Z: Take rows and column corresponding to subject
+                  # W: Take rows and columns corresponding to subject
+                  
+                  phi = phi, Phi = Phi[subday,subday], Psi = matrix(Psi[i+1,i+1]), Sigma =Sigma[idx,idx],
+                  X = X[idx,], Z = matrix(Z[idx,(i+1)], ncol = 1), W = W[idx, subday],
+                  beta = beta, y = y[idx])
+    gAmmA <- c(gAmmA, exp(est$par))
+  }
+  
+  #########################
+  
+  # Dispersion of clo
+  Phi <- Phi*diag(rep(1/gAmmA, times = gamma_idxSubDay))
+  Psi <- Psi*diag(1/gAmmA)
+  Sigma <- Sigma*diag(rep(1/gAmmA, times = gamma_idxSub))
+  
+  V <- Sigma + Z%*%Psi%*%t(Z) + W%*%Phi%*%t(W)
+  
+  # Marginal log-likelihood
+  mu <- X%*%beta
+
+  obj <-  mvtnorm::dmvt(x = as.numeric(y - mu), sigma = V*(nu - 2)/nu, df = nu, log = T)
+  #obj <-  mvtnorm::dmvnorm(y - X%*%beta, sigma = V, log = T)
+  cat("--------------------\n")
+  cat(obj,"\n")
+  cat(own.dmvt(x = y-mu, Sigma = V*(nu - 2)/nu, nu = nu),"\n")
+  cat("--------------------\n")
+  # 
+  return(-obj)
+}
+
+opt.fun4(par_est4$par, X = X, Z = Z, W = W, y = y)
+library(msos)
+own.dmvt <- function(x, Sigma, nu){
+  x <- matrix(x, nrow = length(x))
+  p <- nrow(x)
+  #return(gamma(1/2*(df+p)) * (1 + 1/df*t(x)%*%solve(Sigma)%*%(x))^(-(df+p)/2) / ((df*pi)^(p/2)*sqrt(det(Sigma))*gamma(df/2)))
+  
+  #return(lgamma((nu+p)/2) - lgamma(nu/2) - p/2*log(nu*pi) - 1/2*logdet(Sigma) - (nu+p)/2 * log(1+1/nu*t(x)%*%solve(Sigma)%*%x))
+  return(lgamma((nu+p)/2) - (lgamma(nu/2) + p/2*log(nu*pi) + 1/2*logdet(Sigma)) - (nu+p)/2 * log(1+1/nu*(t(x)%*%solve(Sigma)%*%x)))
+}
+dec <- chol(Sigma)
+lgamma((p + nu)/2) - (lgamma(nu/2) + sum(log(diag(dec))) + p/2 * log(pi * nu)) - 0.5 * (nu + p) * log1p(rss/nu)
+
+mvtnorm::dmvt(x = as.numeric(y - mu), sigma = V*(nu - 2)/nu, df = nu, log = T)
+
+# Optimize params
+#Parameter rækkefølge: alpha, exp(sigma.v^2), exp(sigma.u^2), exp(sigma^2), beta0, beta1, 1+exp(phi)
+par_est4 <- nlminb(start = rep(0, 7),
+                   objective = opt.fun4, 
+                   X = X, Z = Z, W = W, y = y,
+                   control = list(trace = 1))
+par_est4
+# Standard deviations of parameters
+sds4 <- sqrt(diag(solve(hessian(opt.fun4, x = par_est4$par, X = X, Z = Z, W = W, y = y))))
+
+#### 2.6 ####
 # Objective function to estimate gamma for a certain subject ID
 # Inputs are subsets corresponding to the subject
 joined.likelihood <- function(gamma, sigma.g, Phi, Psi, Sigma, X, Z, W, beta, y){
@@ -453,14 +563,12 @@ opt.fun3 <- function(theta, X, Z, W, y){
   return(obj)
 }
 opt.fun3(c(0,0,0,0,0,0,0), X = X, Z = Z, W = W, y = y)
-ests <- nlminb(c(0,0,0,0,0,0,0), objective = opt.fun3, X = X, Z = Z, W = W, y = y, control = list(trace = 1))
-ests$message
+par_est3 <- nlminb(c(0,0,0,0,0,0,0), objective = opt.fun3, X = X, Z = Z, W = W, y = y, control = list(trace = 1))
+par_est3$objective
 # Compare betas
-ests$par[6:7]
-fixed.effects(fit1) # Almost the same
-sds <- sqrt(diag(solve(hessian(func = opt.fun3,x=ests$par, X = X, Z = Z, W = W, y = y))))
+par_est3$par[6:7]
 
-logLik(fit1)
--ests$objective # Better log-likelihood
+sds <- sqrt(diag(solve(hessian(func = opt.fun3,x=par_est3$par, X = X, Z = Z, W = W, y = y))))
 
+save(par_est, par_est1, par_est2, par_est3, par_est4, file = "all_parameter_estimates.Rdata")
 
