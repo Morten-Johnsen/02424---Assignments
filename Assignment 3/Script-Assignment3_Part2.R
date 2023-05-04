@@ -49,7 +49,6 @@ dim(Z) # Z is 803 by 47.
 library(mvtnorm)
 library(numDeriv)
 
- 
 # Function that outputs negative log-likelihood of multivariate normal distribution
 opt.fun <- function(theta){
   # Create variance-covariance structures
