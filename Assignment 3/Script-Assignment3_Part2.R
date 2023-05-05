@@ -374,7 +374,7 @@ joined.likelihood <- function(gamma, phi, Phi, Psi, Sigma, X, Z, W, beta, y){
 # Psi <- diag(exp(theta[3] + idx_Psi*alpha - gamma))
 # Sigma <- diag(exp(theta[4] + idx_Sigma*alpha + rep(-gamma, times = gamma_idxSub)))
 
-opt.fun4 <- function(theta, X, Z, W, y){
+opt.fun4 <- function(theta, X, Z, W, y, define.gamma = F){
   # alpha for males
   alpha <- theta[1] #constant effect of gender across all variances
   
@@ -417,7 +417,9 @@ opt.fun4 <- function(theta, X, Z, W, y){
   }
   
   #########################
-  
+  if (define.gamma){
+    g <<- gAmmA
+  }
   # Dispersion of clo
   Phi <- Phi*diag(rep(1/gAmmA, times = gamma_idxSubDay))
   Psi <- Psi*diag(1/gAmmA)
@@ -429,29 +431,21 @@ opt.fun4 <- function(theta, X, Z, W, y){
   mu <- X%*%beta
 
   obj <-  mvtnorm::dmvt(x = as.numeric(y - mu), sigma = V*(nu - 2)/nu, df = nu, log = T)
-  #obj <-  mvtnorm::dmvnorm(y - X%*%beta, sigma = V, log = T)
-  cat("--------------------\n")
-  cat(obj,"\n")
-  cat(own.dmvt(x = y-mu, Sigma = V*(nu - 2)/nu, nu = nu),"\n")
-  cat("--------------------\n")
-  # 
+  #own implementation of the multivariate t distribution. This is were only used for comparison.
+  #own.dmvt(x = y-mu, Sigma = V*(nu - 2)/nu, nu = nu)
   return(-obj)
 }
 
-opt.fun4(par_est4$par, X = X, Z = Z, W = W, y = y)
-library(msos)
-own.dmvt <- function(x, Sigma, nu){
-  x <- matrix(x, nrow = length(x))
-  p <- nrow(x)
-  #return(gamma(1/2*(df+p)) * (1 + 1/df*t(x)%*%solve(Sigma)%*%(x))^(-(df+p)/2) / ((df*pi)^(p/2)*sqrt(det(Sigma))*gamma(df/2)))
-  
-  #return(lgamma((nu+p)/2) - lgamma(nu/2) - p/2*log(nu*pi) - 1/2*logdet(Sigma) - (nu+p)/2 * log(1+1/nu*t(x)%*%solve(Sigma)%*%x))
-  return(lgamma((nu+p)/2) - (lgamma(nu/2) + p/2*log(nu*pi) + 1/2*logdet(Sigma)) - (nu+p)/2 * log(1+1/nu*(t(x)%*%solve(Sigma)%*%x)))
-}
-dec <- chol(Sigma)
-lgamma((p + nu)/2) - (lgamma(nu/2) + sum(log(diag(dec))) + p/2 * log(pi * nu)) - 0.5 * (nu + p) * log1p(rss/nu)
-
-mvtnorm::dmvt(x = as.numeric(y - mu), sigma = V*(nu - 2)/nu, df = nu, log = T)
+opt.fun4(par_est4$par, X = X, Z = Z, W = W, y = y, )
+#library(msos)
+# own.dmvt <- function(x, Sigma, nu){
+#   x <- matrix(x, nrow = length(x))
+#   p <- nrow(x)
+#   #return(gamma(1/2*(df+p)) * (1 + 1/df*t(x)%*%solve(Sigma)%*%(x))^(-(df+p)/2) / ((df*pi)^(p/2)*sqrt(det(Sigma))*gamma(df/2)))
+#   
+#   #return(lgamma((nu+p)/2) - lgamma(nu/2) - p/2*log(nu*pi) - 1/2*logdet(Sigma) - (nu+p)/2 * log(1+1/nu*t(x)%*%solve(Sigma)%*%x))
+#   return(lgamma((nu+p)/2) - (lgamma(nu/2) + p/2*log(nu*pi) + 1/2*logdet(Sigma)) - (nu+p)/2 * log(1+1/nu*(t(x)%*%solve(Sigma)%*%x)))
+# }
 
 # Optimize params
 #Parameter rækkefølge: alpha, exp(sigma.v^2), exp(sigma.u^2), exp(sigma^2), beta0, beta1, 1+exp(phi)
@@ -460,6 +454,7 @@ par_est4 <- nlminb(start = rep(0, 7),
                    X = X, Z = Z, W = W, y = y,
                    control = list(trace = 1))
 par_est4
+opt.fun4(par_est4$par, X = X, Z = Z, W = W, y = y, define.gamma = T)
 # Standard deviations of parameters
 sds4 <- sqrt(diag(solve(hessian(opt.fun4, x = par_est4$par, X = X, Z = Z, W = W, y = y))))
 
@@ -504,7 +499,7 @@ joined.likelihood.H <- function(gamma, sigma.g, Phi, Psi, Sigma, X, Z, W, beta, 
 
 # theta = [alpha, log(sigma_v^2), log(sigma_u^2), log(sigma^2), log(sigma_g^2), 
 #           beta_intercept, beta_slope]
-opt.fun3 <- function(theta, X, Z, W, y){
+opt.fun3 <- function(theta, X, Z, W, y, define.gamma = F){
   alpha <- theta[1]
   Phi <- diag(exp(theta[2] + idx_Phi*alpha))
   Psi <- diag(exp(theta[3] + idx_Psi*alpha))
@@ -555,7 +550,9 @@ opt.fun3 <- function(theta, X, Z, W, y){
   l.u <- joined.likelihood.H(gamma = gamma, sigma.g = sigma.g, 
                            Phi=Phi, Psi=Psi, Sigma=Sigma, 
                            X=X, Z=Z, W=W, beta=beta, y = y)
-  
+  if (define.gamma){
+    g <<- gamma
+  }
   #Negative log-likelihood
   #obj <-  l.u + 1/2*logdet(H/(2*pi))
   # Use equation 5.101 to get laplace approximated marginal likelihood of clo
@@ -565,10 +562,14 @@ opt.fun3 <- function(theta, X, Z, W, y){
 opt.fun3(c(0,0,0,0,0,0,0), X = X, Z = Z, W = W, y = y)
 par_est3 <- nlminb(c(0,0,0,0,0,0,0), objective = opt.fun3, X = X, Z = Z, W = W, y = y, control = list(trace = 1))
 par_est3$objective
+opt.fun3(par_est3$par, X = X, Z = Z, W = W, y = y, define.gamma = T)
 # Compare betas
+data.frame("Subject" = unique(c.data$subjId) ,"gamma" = g)
 par_est3$par[6:7]
 
-sds <- sqrt(diag(solve(hessian(func = opt.fun3,x=par_est3$par, X = X, Z = Z, W = W, y = y))))
+sds3 <- sqrt(diag(solve(hessian(func = opt.fun3,x=par_est3$par, X = X, Z = Z, W = W, y = y))))
+par_est3$par
+
 
 save(par_est, par_est1, par_est2, par_est3, par_est4, file = "all_parameter_estimates.Rdata")
 
