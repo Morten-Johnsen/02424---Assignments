@@ -356,6 +356,56 @@ par(mfrow = c(1, 1))
 acf(residuals(final.model.ML3, retype="normalized"), main = "Auto-correlation for final.model.ML3 (ACF)", lag.max = 6)
 pacf(residuals(final.model.ML3, retype="normalized"), main = "Auto-correlation for final.model.ML3 (PACF)", lag.max = 6)
 
+get_acf <- function(x){
+  return(as.numeric(acf(x, plot = F, na.action = na.pass)$acf))
+}
+get_pacf <- function(x){
+  return(as.numeric(pacf(x, plot = F, na.action = na.pass)$acf))
+}
+
+c.data$finalResiduals <- residuals(final.model.ML3, retype="normalized")
+data.frame(c.data) %>%
+  mutate(subjDay = paste0(subjId, "/", day)) %>%
+  select(subjDay, time, finalResiduals) %>%
+  arrange(subjDay, time) %>%
+  group_by(subjDay) %>%
+  mutate(timeId = row_number()) %>%
+  select(-time) %>%
+  pivot_wider(id_cols = subjDay,
+              names_from = timeId,
+              values_from = finalResiduals) %>%
+  ungroup() -> daily_residuals
+
+acf_residuals <- matrix(NA, nrow = nrow(daily_residuals), ncol = ncol(daily_residuals)-1)
+pacf_residuals <- matrix(NA, nrow = nrow(daily_residuals), ncol = ncol(daily_residuals)-2)
+for (i in 1:nrow(daily_residuals)){
+  acf_residuals[i,] <- get_acf(x = as.numeric(daily_residuals[i,-1]))
+  pacf_residuals[i,] <- get_pacf(x = as.numeric(daily_residuals[i,-1]))
+}
+
+acf_plot <- data.frame("ACF" = apply(acf_residuals, MARGIN = 2, FUN = mean, na.rm = T), "lag" = 0:5) %>%
+  ggplot()+
+  geom_col(aes(x = lag, y = ACF), width = 0.5)+
+  geom_hline(aes(yintercept = 0),colour = "black")+
+  geom_hline(aes(yintercept = qnorm(1-0.05/2)/sqrt(dim(c.data)[1]), colour = "95% significance level"), linetype = "dashed", linewidth = 0.8)+
+  geom_hline(aes(yintercept = -qnorm(1-0.05/2)/sqrt(dim(c.data)[1])), linetype = "dashed", colour = "royalblue1", linewidth = 0.8)+
+  theme_bw()+
+  labs(x = "lag", y = "ACF", colour = "")+
+  scale_colour_manual(values = c("royalblue1"))+
+  theme(legend.position = "top")+
+  ggtitle("Final model: Residual within-day ACF")
+pacf_plot <- data.frame("PACF" = apply(pacf_residuals, MARGIN = 2, FUN = mean, na.rm = T), "lag" = 1:5) %>%
+  ggplot()+
+  geom_col(aes(x = lag, y = PACF), width = 0.5)+
+  geom_hline(aes(yintercept = 0),colour = "black")+
+  geom_hline(aes(yintercept = qnorm(1-0.05/2)/sqrt(dim(c.data)[1]), colour = "95% significance level"), linetype = "dashed", linewidth = 0.8)+
+  geom_hline(aes(yintercept = -qnorm(1-0.05/2)/sqrt(dim(c.data)[1])), linetype = "dashed", colour = "royalblue1", linewidth = 0.8)+
+  theme_bw()+
+  labs(x = "lag", y = "PACF", colour = "")+
+  scale_colour_manual(values = c("royalblue1"))+
+  theme(legend.position = "top")+
+  ggtitle("Final model: Residual within-day PACF")
+grid.arrange(acf_plot, pacf_plot, ncol = 2)
 
 # QQplot
 c.data$res <- resid(final.model.ML3, type = "p")
