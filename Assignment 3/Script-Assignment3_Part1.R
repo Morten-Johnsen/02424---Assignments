@@ -353,8 +353,8 @@ plot(final.model.ML3, clo ~ fitted(.) | sex, abline = c(0,1))
 # This also shows higher variance of fitted values vs. actual values for females (than male)
 
 par(mfrow = c(1, 1))
-acf(residuals(final.model.ML3, retype="normalized"), main = "Auto-correlation for final.model.ML3 (ACF)", lag.max = 6)
-pacf(residuals(final.model.ML3, retype="normalized"), main = "Auto-correlation for final.model.ML3 (PACF)", lag.max = 6)
+acf(residuals(final.model.ML3, retype="normalized"), main = "ACF pearson residuals", lag.max = 6)
+pacf(residuals(final.model.ML3, retype="normalized"), main = "PACF pearson residuals", lag.max = 6)
 
 get_acf <- function(x){
   return(as.numeric(acf(x, plot = F, na.action = na.pass)$acf))
@@ -494,6 +494,33 @@ ML3.pred.sex <- ggplot(c.data,aes(x=clo,y=pred)) +
 ggsave(filename = file.path(figpath, "predictVSactual3_1_sex.png"), plot = ML3.pred.sex, height = 5, width = 7.5)
 
 boxplot(c.data$pred[c.data$sex == "male"], c.data$clo[c.data$sex == "male"])
+
+
+
+####### New prediction plots ###############
+# Observed clo and tOut
+# Prediction and confidence intervals are based on predicted clo
+ML3.pred.tOutvsclo <- ggplot(c.data, aes(x = tOut,y = clo)) + #
+  geom_point() +
+  geom_ribbon(aes(ymin=pred-2*newdat$SE,ymax=pred+2*newdat$SE),alpha=0.3,fill="blue") +
+  geom_ribbon(aes(ymin=pred-2*newdat$SE2,ymax=pred+2*newdat$SE2),alpha=0.2,fill="red") +
+  labs(x='tOut', y='clo', title='Outdoor temperature vs. Predicted Values of Clothing Insulation Level',
+       subtitle = "Within day auto-correlation") +
+  theme_minimal()
+ggsave(filename = file.path(figpath, "predictVSactual3_tOut.png"), plot = ML3.pred.tOutvsclo, height = 5, width = 7.5)
+
+
+
+ML3.pred.tOutvsclo.sex <- ggplot(c.data, aes(x = tOut,y = clo)) + #
+  geom_point() +
+  geom_ribbon(aes(ymin=pred-2*newdat$SE,ymax=pred+2*newdat$SE),alpha=0.3,fill="blue") +
+  geom_ribbon(aes(ymin=pred-2*newdat$SE2,ymax=pred+2*newdat$SE2),alpha=0.2,fill="red") +
+  labs(x='tOut', y='clo', title='Outdoor temperature vs. Predicted Values of Clothing Insulation Level',
+       subtitle = "Within day auto-correlation") +
+  theme_minimal()+
+  facet_wrap(vars(sex))
+ggsave(filename = file.path(figpath, "predictVSactual3_tOut_sex.png"), plot = ML3.pred.tOutvsclo.sex, height = 5, width = 7.5)
+
 
 
 
