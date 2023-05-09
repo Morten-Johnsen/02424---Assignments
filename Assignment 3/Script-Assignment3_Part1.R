@@ -45,17 +45,7 @@ table(c.data$day)
 #### ------------- Part 1: Fitting a linear mixed effect model ---------------
 
 ## Using subjId as random effect ##
-# I use the following method: first fit full model and reduce. Then fit another
-# model, starting with a simple model and extending. Compare the two models
-# Using chisq-testing: it does not take the random effects into account
-# therefore, we compare the log-likelihoods to see if there is an improvement.
-# Jan approved of comparing models during reduction/extension using chisq, and 
-# then testing for the model improvement with anova. In the end, we should also 
-# consider whether the random effects are significant or not.
 
-
-# make models with individual slopes. Choose the best one.
-# only use forward selection.
 
 ## Simple lme: use ML method so we can compare models!
 fit.mmfw0<-lme(clo~1,
@@ -230,7 +220,6 @@ final.model.REML2 <- fit.mm.nest.fwREML
 final.model.ML2 <- fit.mm.nest3
 
 # Compare with model from 1.2:
-
 anova(final.model.ML2,final.model.ML1)
 # Conclusion: final.model.ML2 is better
 
@@ -258,8 +247,6 @@ plot(final.model.ML2, clo ~ fitted(.) | sex, abline = c(0,1))
 ######### Fit a mixed effect model with within day auto-correlation #########
 # subjId is random effect
 # Only consider random intercept - not slope AND intercept
-# Remember to validate which correlation term should be used. 
-# Confirm with AIC or BIC
 
 # Forward selection:
 # insists that the grouping variable for the random effects and for the correlation be the same
@@ -310,6 +297,7 @@ c.data.ranef = merge(c.data,ranef.data,by = "subDay")
 
 c.data.ranef[c.data.ranef$subjId == subID_interp,]
 
+# Compare with the same model but without AE
 samefit_wo_AR <- lme(clo ~ tOut + sex + tOut*sex,
                              random = ~1|subDay,
                              data = c.data, method = "REML")
@@ -321,6 +309,8 @@ c.data.ranef_wo_AR[c.data.ranef_wo_AR$subjId == subID_interp,]
 samefit_wo_ARML <- lme(clo ~ tOut + sex + tOut*sex,
                      random = ~1|subDay,
                      data = c.data, method = "ML")
+
+# Compare models
 anova(final.model.ML3,samefit_wo_ARML)
 
 
